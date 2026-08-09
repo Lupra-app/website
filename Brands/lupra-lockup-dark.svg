@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 260 80" width="260" height="80">
+  <g transform="translate(8,8)">
+    <path d="M35.82 10.33 A22 22 0 1 0 53.67 28.18" fill="none" stroke="#FFFFFF" stroke-width="7" stroke-linecap="round"/>
+    <circle cx="47.56" cy="16.44" r="5.5" fill="#818CF8"/>
+  </g>
+  <text x="84" y="52" font-family="Inter, 'Segoe UI', system-ui, sans-serif" font-size="34" font-weight="600" letter-spacing="1" fill="#FFFFFF">lupra</text>
+</svg>
