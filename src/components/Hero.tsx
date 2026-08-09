@@ -20,7 +20,11 @@ export function Hero() {
         return;
       }
 
-      const split = new SplitText(headingRef.current, { type: "chars", charsClass: "char" });
+      const split = new SplitText(headingRef.current, {
+        type: "words, chars",
+        wordsClass: "word",
+        charsClass: "char",
+      });
       gsap.set(split.chars, {
         opacity: 0,
         y: 42,

@@ -33,7 +33,7 @@ export function HowItWorks() {
       const cards = gsap.utils.toArray<HTMLElement>("[data-step-card]", sectionRef.current);
       const reduced = prefersReducedMotion();
 
-      cards.forEach((card, i) => {
+      cards.forEach((card) => {
         const ring = card.querySelector<SVGCircleElement>("[data-step-ring]");
         const connector = card.nextElementSibling?.matches("[data-connector]")
           ? (card.nextElementSibling.querySelector<HTMLElement>("[data-connector-line]") ?? null)

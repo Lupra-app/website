@@ -105,32 +105,41 @@ function FeatureCard({ title, desc, icon }: { title: string; desc: string; icon:
 
     gsap.set(el, { transformPerspective: 800, transformStyle: "preserve-3d" });
 
-    const xTo = gsap.quickTo(el, "x", { duration: 0.5, ease: "power3.out" });
-    const yTo = gsap.quickTo(el, "y", { duration: 0.5, ease: "power3.out" });
-    const rotateXTo = gsap.quickTo(el, "rotateX", { duration: 0.5, ease: "power3.out" });
-    const rotateYTo = gsap.quickTo(el, "rotateY", { duration: 0.5, ease: "power3.out" });
-    const scaleTo = gsap.quickTo(el, "scale", { duration: 0.5, ease: "power3.out" });
+    // A single element can't safely mix quickTo() across x/y/rotateX/rotateY/scale —
+    // GSAP's CSSPlugin merges them into one composite transform, and multiple quickTo
+    // instances fighting over that composite trip its internal reset cache ("not
+    // eligible for reset" warning). Drive them as one gsap.to() per event instead.
     const iconZTo = gsap.quickTo(iconEl, "z", { duration: 0.5, ease: "power3.out" });
 
     const onMove = (e: MouseEvent) => {
       const rect = el.getBoundingClientRect();
       const relX = (e.clientX - rect.left) / rect.width - 0.5;
       const relY = (e.clientY - rect.top) / rect.height - 0.5;
-      xTo(relX * 12);
-      yTo(relY * 12);
-      rotateYTo(relX * 12);
-      rotateXTo(relY * -12);
+      gsap.to(el, {
+        x: relX * 12,
+        y: relY * 12,
+        rotateY: relX * 12,
+        rotateX: relY * -12,
+        duration: 0.5,
+        ease: "power3.out",
+        overwrite: "auto",
+      });
     };
     const onEnter = () => {
-      scaleTo(1.02);
+      gsap.to(el, { scale: 1.02, duration: 0.5, ease: "power3.out", overwrite: "auto" });
       iconZTo(28);
     };
     const onLeave = () => {
-      xTo(0);
-      yTo(0);
-      rotateXTo(0);
-      rotateYTo(0);
-      scaleTo(1);
+      gsap.to(el, {
+        x: 0,
+        y: 0,
+        rotateX: 0,
+        rotateY: 0,
+        scale: 1,
+        duration: 0.5,
+        ease: "power3.out",
+        overwrite: "auto",
+      });
       iconZTo(0);
     };
 
@@ -149,7 +158,7 @@ function FeatureCard({ title, desc, icon }: { title: string; desc: string; icon:
       ref={cardRef}
       data-feature-card
       data-cursor-hover
-      className="rounded-2xl border border-white/[0.06] bg-bg-raised/60 p-6 transition-colors hover:border-white/[0.14]"
+      className="rounded-2xl border border-white/6 bg-bg-raised/60 p-6 transition-colors hover:border-white/14"
     >
       <div ref={iconRef} className="text-white">
         {icon}

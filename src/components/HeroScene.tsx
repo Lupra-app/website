@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import * as THREE from "three";
 import { gsap, prefersReducedMotion } from "@/lib/gsap";
 
@@ -9,9 +9,15 @@ const SWEEP_DEG = 360 - GAP_DEG;
 const DOT_ANGLE_DEG = 45;
 const RING_ROTATE_DEG = 80; // aligns the sweep's natural gap onto the brand's top-right gap
 
+const FALLBACK_MARK_SVG = `
+  <svg viewBox="0 0 64 64" fill="none" style="overflow: visible; width: 100%; height: 100%;">
+    <path d="M35.82 10.33 A22 22 0 1 0 53.67 28.18" stroke="#FFFFFF" stroke-width="6" stroke-linecap="round" />
+    <circle cx="47.56" cy="16.44" r="5.5" fill="#818CF8" />
+  </svg>
+`;
+
 export function HeroScene() {
   const containerRef = useRef<HTMLDivElement>(null);
-  const [supported, setSupported] = useState(true);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -21,7 +27,7 @@ export function HeroScene() {
     try {
       renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     } catch {
-      setSupported(false);
+      container.innerHTML = FALLBACK_MARK_SVG;
       return;
     }
 
@@ -151,20 +157,6 @@ export function HeroScene() {
       }
     };
   }, []);
-
-  if (!supported) {
-    return (
-      <svg viewBox="0 0 64 64" fill="none" className="overflow-visible" role="img" aria-label="Lupra logosu">
-        <path
-          d="M35.82 10.33 A22 22 0 1 0 53.67 28.18"
-          stroke="#FFFFFF"
-          strokeWidth="6"
-          strokeLinecap="round"
-        />
-        <circle cx="47.56" cy="16.44" r="5.5" fill="#818CF8" />
-      </svg>
-    );
-  }
 
   return (
     <div
