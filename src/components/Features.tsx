@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, type ReactNode } from "react";
 import { gsap, useGSAP, prefersReducedMotion } from "@/lib/gsap";
+import { useMediaQuery } from "@/lib/useMediaQuery";
+import { FeaturesScene } from "./FeaturesScene";
 
 function ExecutionIcon() {
   return (
@@ -158,7 +160,7 @@ function FeatureCard({ title, desc, icon }: { title: string; desc: string; icon:
       ref={cardRef}
       data-feature-card
       data-cursor-hover
-      className="rounded-2xl border border-white/6 bg-bg-raised/60 p-6 transition-colors hover:border-white/14"
+      className="w-full max-w-md shrink-0 rounded-2xl border border-white/6 bg-bg-raised/75 p-7 backdrop-blur-sm transition-colors hover:border-white/14 lg:w-110"
     >
       <div ref={iconRef} className="text-white">
         {icon}
@@ -171,35 +173,92 @@ function FeatureCard({ title, desc, icon }: { title: string; desc: string; icon:
 
 export function Features() {
   const sectionRef = useRef<HTMLElement>(null);
+  const pinRef = useRef<HTMLDivElement>(null);
+  const trackRef = useRef<HTMLDivElement>(null);
+  const progress = useRef({ value: 0 });
+  const isDesktop = useMediaQuery("(min-width: 1024px)");
 
   useGSAP(
     () => {
-      if (!sectionRef.current || prefersReducedMotion()) return;
-      const cards = gsap.utils.toArray<HTMLElement>("[data-feature-card]", sectionRef.current);
+      if (!pinRef.current || !trackRef.current) return;
+      const mm = gsap.matchMedia();
 
-      gsap.set(cards, { opacity: 0, y: 24 });
-      gsap.to(cards, {
-        opacity: 1,
-        y: 0,
-        duration: 0.6,
-        ease: "power2.out",
-        stagger: 0.1,
-        scrollTrigger: { trigger: sectionRef.current, start: "top 78%" },
+      // Desktop: pin the section and translate the card track horizontally, with
+      // scroll progress reported to the 3D companion via the shared `progress` ref.
+      mm.add("(min-width: 1024px) and (prefers-reduced-motion: no-preference)", () => {
+        const pinEl = pinRef.current!;
+        const track = trackRef.current!;
+        const distance = () => Math.max(0, track.scrollWidth - pinEl.clientWidth);
+
+        const tl = gsap.timeline({
+          scrollTrigger: {
+            trigger: pinEl,
+            start: "top top",
+            end: () => "+=" + distance(),
+            scrub: 1,
+            pin: true,
+            invalidateOnRefresh: true,
+            onUpdate: (self) => {
+              progress.current.value = self.progress;
+            },
+          },
+        });
+        tl.to(track, { x: () => -distance(), ease: "none" });
+
+        return () => {
+          tl.scrollTrigger?.kill();
+          tl.kill();
+        };
       });
+
+      // Mobile / reduced motion: no pin, cards stack — just a simple reveal.
+      mm.add("(max-width: 1023.98px), (prefers-reduced-motion: reduce)", () => {
+        const cards = gsap.utils.toArray<HTMLElement>("[data-feature-card]", trackRef.current!);
+        if (prefersReducedMotion()) {
+          gsap.set(cards, { opacity: 1, y: 0 });
+          return;
+        }
+        gsap.set(cards, { opacity: 0, y: 24 });
+        gsap.to(cards, {
+          opacity: 1,
+          y: 0,
+          duration: 0.6,
+          ease: "power2.out",
+          stagger: 0.1,
+          scrollTrigger: { trigger: sectionRef.current, start: "top 78%" },
+        });
+      });
+
+      return () => mm.revert();
     },
     { scope: sectionRef }
   );
 
   return (
-    <section ref={sectionRef} className="relative px-5 py-24 sm:px-8 sm:py-32">
-      <div className="mx-auto max-w-5xl">
-        <h2 className="font-heading text-3xl font-semibold text-white sm:text-4xl">
-          Neler yapabilir
-        </h2>
-        <div className="mt-14 grid gap-5 sm:grid-cols-2">
-          {FEATURES.map((feature) => (
-            <FeatureCard key={feature.title} {...feature} />
-          ))}
+    <section ref={sectionRef} id="features" className="relative">
+      <div ref={pinRef} className="relative overflow-hidden lg:h-screen">
+        {isDesktop && (
+          <div className="pointer-events-none absolute inset-0">
+            <FeaturesScene progress={progress} />
+          </div>
+        )}
+
+        <div className="relative z-10 px-5 pb-10 pt-24 sm:px-8 sm:pt-28 lg:pb-0">
+          <h2 className="font-heading text-3xl font-semibold text-white sm:text-4xl">
+            Neler yapabilir
+          </h2>
+        </div>
+
+        <div className="relative z-10 px-5 pb-24 sm:px-8 lg:flex lg:h-[calc(100%-140px)] lg:items-center lg:overflow-visible lg:px-16 lg:pb-0">
+          <div
+            ref={trackRef}
+            className="flex flex-col gap-5 lg:flex-row lg:flex-nowrap lg:items-stretch lg:gap-8"
+          >
+            {FEATURES.map((feature) => (
+              <FeatureCard key={feature.title} {...feature} />
+            ))}
+            <div aria-hidden="true" className="hidden shrink-0 lg:block lg:w-8" />
+          </div>
         </div>
       </div>
     </section>

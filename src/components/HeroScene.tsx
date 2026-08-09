@@ -3,18 +3,7 @@
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
 import { gsap, prefersReducedMotion } from "@/lib/gsap";
-
-const GAP_DEG = 70;
-const SWEEP_DEG = 360 - GAP_DEG;
-const DOT_ANGLE_DEG = 45;
-const RING_ROTATE_DEG = 80; // aligns the sweep's natural gap onto the brand's top-right gap
-
-const FALLBACK_MARK_SVG = `
-  <svg viewBox="0 0 64 64" fill="none" style="overflow: visible; width: 100%; height: 100%;">
-    <path d="M35.82 10.33 A22 22 0 1 0 53.67 28.18" stroke="#FFFFFF" stroke-width="6" stroke-linecap="round" />
-    <circle cx="47.56" cy="16.44" r="5.5" fill="#818CF8" />
-  </svg>
-`;
+import { createRingMesh, addStandardLighting, disposeRingMesh, FALLBACK_MARK_SVG } from "@/lib/ringMesh";
 
 export function HeroScene() {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -40,39 +29,10 @@ export function HeroScene() {
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     container.appendChild(renderer.domElement);
 
-    const ambient = new THREE.AmbientLight(0xffffff, 0.75);
-    const key = new THREE.DirectionalLight(0xffffff, 1.1);
-    key.position.set(-2.5, 2.6, 3);
-    const fill = new THREE.DirectionalLight(0x818cf8, 0.35);
-    fill.position.set(2, -1.5, -2);
-    scene.add(ambient, key, fill);
-
-    const R = 1.05;
-    const TUBE = 0.16;
-
-    const ringGeo = new THREE.TorusGeometry(R, TUBE, 28, 120, THREE.MathUtils.degToRad(SWEEP_DEG));
-    ringGeo.rotateZ(THREE.MathUtils.degToRad(RING_ROTATE_DEG));
-    const ringMat = new THREE.MeshStandardMaterial({
-      color: 0xffffff,
-      roughness: 0.85,
-      metalness: 0,
-      transparent: true,
-      opacity: 0,
-    });
-    const ringMesh = new THREE.Mesh(ringGeo, ringMat);
-
-    const dotGeo = new THREE.SphereGeometry(TUBE * 1.55, 32, 32);
-    const dotMat = new THREE.MeshStandardMaterial({
-      color: 0x818cf8,
-      roughness: 0.6,
-      metalness: 0,
-      transparent: true,
-      opacity: 0,
-    });
-    const dotMesh = new THREE.Mesh(dotGeo, dotMat);
-    const dotAngle = THREE.MathUtils.degToRad(DOT_ANGLE_DEG);
-    const dotFinal = new THREE.Vector3(R * Math.cos(dotAngle), R * Math.sin(dotAngle), 0);
-    dotMesh.position.copy(dotFinal).add(new THREE.Vector3(0, 0.9, 0));
+    addStandardLighting(scene);
+    const ring = createRingMesh();
+    const { ringMat, ringMesh, dotMat, dotMesh, dotFinal } = ring;
+    dotMesh.position.add(new THREE.Vector3(0, 0.9, 0));
 
     const tiltGroup = new THREE.Group();
     tiltGroup.add(ringMesh, dotMesh);
@@ -147,10 +107,7 @@ export function HeroScene() {
       window.removeEventListener("pointermove", onPointerMove);
       ro.disconnect();
       io.disconnect();
-      ringGeo.dispose();
-      ringMat.dispose();
-      dotGeo.dispose();
-      dotMat.dispose();
+      disposeRingMesh(ring);
       renderer.dispose();
       if (renderer.domElement.parentNode === container) {
         container?.removeChild(renderer.domElement);
@@ -158,12 +115,5 @@ export function HeroScene() {
     };
   }, []);
 
-  return (
-    <div
-      ref={containerRef}
-      role="img"
-      aria-label="Lupra logosu"
-      className="h-full w-full"
-    />
-  );
+  return <div ref={containerRef} role="img" aria-label="Lupra logosu" className="h-full w-full" />;
 }
