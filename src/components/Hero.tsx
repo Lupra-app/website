@@ -3,7 +3,6 @@
 import { useRef } from "react";
 import { gsap, useGSAP, SplitText, prefersReducedMotion } from "@/lib/gsap";
 import { BackgroundRings } from "./BackgroundRings";
-import { HeroScene } from "./HeroScene";
 
 export function Hero() {
   const sectionRef = useRef<HTMLElement>(null);
@@ -61,9 +60,9 @@ export function Hero() {
     >
       <BackgroundRings />
       <div className="relative mx-auto flex w-full max-w-4xl flex-col items-center px-5 text-center sm:px-8">
-        <div className="mb-6 aspect-square w-55 sm:w-70 md:w-80">
-          <HeroScene />
-        </div>
+        {/* The 3D mark lives in the global fixed <Scene3D> canvas, not here — this
+            spacer just reserves the visual room it occupies at its hero scale. */}
+        <div aria-hidden="true" className="mb-6 h-55 sm:h-70 md:h-80" />
 
         <h1
           ref={headingRef}

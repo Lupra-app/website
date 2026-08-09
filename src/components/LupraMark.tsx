@@ -15,6 +15,13 @@ import {
 const IDLE_SPIN_RAD_PER_SEC = 0.1;
 const MAX_TILT_RAD = THREE.MathUtils.degToRad(6);
 const TILT_LERP_SPEED = 3.5;
+// Fixed viewing angle so the ring reads as a 3D form (not a flat 2D circle).
+// This must stay CONSTANT, not accumulate — spinning around an in-plane axis
+// (X or Y) would carry the ring edge-on to the camera once per rotation,
+// collapsing it into an illegible sliver. The idle spin instead turns around
+// the ring's own perpendicular (Z) axis, which keeps the silhouette constant
+// and only orbits the gap/dot around it — always legible.
+const BASE_TILT_X = THREE.MathUtils.degToRad(-27);
 
 export function LupraMark({
   target,
@@ -73,11 +80,11 @@ export function LupraMark({
     if (!animated) return;
 
     if (spinGroupRef.current) {
-      spinGroupRef.current.rotation.y += IDLE_SPIN_RAD_PER_SEC * delta;
+      spinGroupRef.current.rotation.z += IDLE_SPIN_RAD_PER_SEC * delta;
     }
     if (tiltGroupRef.current) {
       const p = pointer.current;
-      const targetTiltX = p.y * -MAX_TILT_RAD;
+      const targetTiltX = BASE_TILT_X + p.y * -MAX_TILT_RAD;
       const targetTiltY = p.x * MAX_TILT_RAD;
       tiltGroupRef.current.rotation.x = THREE.MathUtils.damp(
         tiltGroupRef.current.rotation.x,
@@ -96,8 +103,8 @@ export function LupraMark({
 
   return (
     <group ref={scrollGroupRef}>
-      <group ref={spinGroupRef}>
-        <group ref={tiltGroupRef}>
+      <group ref={tiltGroupRef} rotation={[BASE_TILT_X, 0, 0]}>
+        <group ref={spinGroupRef}>
           <mesh>
             <torusGeometry
               args={[

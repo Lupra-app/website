@@ -98,7 +98,7 @@ export function EarlyAccess() {
     <section id="early-access" ref={sectionRef} className="relative px-5 py-24 sm:px-8 sm:py-32">
       <div
         ref={cardRef}
-        className="mx-auto flex max-w-2xl flex-col items-center rounded-3xl border border-white/6 bg-bg-raised/60 px-6 py-14 text-center sm:px-14"
+        className="mx-auto flex max-w-2xl flex-col items-center rounded-3xl border border-white/6 bg-bg-raised/85 px-6 py-14 text-center backdrop-blur-sm sm:px-14"
       >
         <h2 className="font-heading text-3xl font-semibold text-white sm:text-4xl">
           Erken erişime katıl

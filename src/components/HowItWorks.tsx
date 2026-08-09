@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useRef } from "react";
+import { useRef } from "react";
 import { gsap, useGSAP, prefersReducedMotion } from "@/lib/gsap";
 
 const R = 26;
@@ -35,22 +35,17 @@ export function HowItWorks() {
 
       cards.forEach((card) => {
         const ring = card.querySelector<SVGCircleElement>("[data-step-ring]");
-        const connector = card.nextElementSibling?.matches("[data-connector]")
-          ? (card.nextElementSibling.querySelector<HTMLElement>("[data-connector-line]") ?? null)
-          : null;
         const progress = parseFloat(card.dataset.progress ?? "0");
         const finalOffset = CIRC * (1 - progress);
 
         if (reduced) {
           gsap.set(card, { opacity: 1, y: 0 });
           if (ring) gsap.set(ring, { strokeDashoffset: finalOffset });
-          if (connector) gsap.set(connector, { scaleX: 1 });
           return;
         }
 
         gsap.set(card, { opacity: 0, y: 28 });
         if (ring) gsap.set(ring, { strokeDashoffset: CIRC });
-        if (connector) gsap.set(connector, { scaleX: 0 });
 
         const tl = gsap.timeline({
           scrollTrigger: { trigger: card, start: "top 82%" },
@@ -63,24 +58,34 @@ export function HowItWorks() {
             "-=0.5"
           );
         }
-        if (connector) {
-          tl.to(connector, { scaleX: 1, duration: 0.6, ease: "power2.inOut" }, "-=0.3");
-        }
       });
     },
     { scope: sectionRef }
   );
 
   return (
-    <section id="how-it-works" ref={sectionRef} className="relative px-5 py-24 sm:px-8 sm:py-32">
+    <section
+      id="how-it-works"
+      ref={sectionRef}
+      className="relative px-5 py-24 sm:px-8 md:py-48"
+    >
       <div className="mx-auto max-w-5xl">
         <h2 className="font-heading text-3xl font-semibold text-white sm:text-4xl">
           Nasıl çalışır
         </h2>
-        <div className="mt-14 flex flex-col gap-12 sm:flex-row sm:items-start sm:gap-0">
-          {STEPS.map((step, i) => (
-            <Fragment key={step.title}>
-              <div data-step-card data-progress={step.progress} className="flex flex-col items-start gap-5 sm:flex-1">
+        <div className="mt-14 md:grid md:grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)] md:gap-12">
+          {/* Reserved space: the traveling 3D mark (global <Scene3D>) occupies this
+              column visually as the user scrolls through the steps on the right. */}
+          <div aria-hidden="true" className="hidden md:block" />
+
+          <div className="flex flex-col gap-16 md:gap-40">
+            {STEPS.map((step, i) => (
+              <div
+                key={step.title}
+                data-step-card
+                data-progress={step.progress}
+                className="flex flex-col items-start gap-5"
+              >
                 <div className="group">
                   <svg
                     viewBox="0 0 64 64"
@@ -106,19 +111,11 @@ export function HowItWorks() {
                   <h3 className="mt-1 font-heading text-xl font-semibold text-white">
                     {step.title}
                   </h3>
-                  <p className="mt-2 text-muted">{step.desc}</p>
+                  <p className="mt-2 max-w-sm text-muted">{step.desc}</p>
                 </div>
               </div>
-              {i < STEPS.length - 1 && (
-                <div data-connector className="hidden items-center px-3 pt-7 sm:flex">
-                  <div
-                    data-connector-line
-                    className="h-px w-10 origin-left bg-white/15 lg:w-16"
-                  />
-                </div>
-              )}
-            </Fragment>
-          ))}
+            ))}
+          </div>
         </div>
       </div>
     </section>
