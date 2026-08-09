@@ -1,58 +1,50 @@
 "use client";
 
 import { useRef } from "react";
-import { gsap, useGSAP, prefersReducedMotion } from "@/lib/gsap";
+import { gsap, useGSAP, SplitText, prefersReducedMotion } from "@/lib/gsap";
 import { BackgroundRings } from "./BackgroundRings";
+import { HeroScene } from "./HeroScene";
 
 export function Hero() {
   const sectionRef = useRef<HTMLElement>(null);
-  const ringRef = useRef<SVGPathElement>(null);
-  const dotRef = useRef<SVGCircleElement>(null);
   const headingRef = useRef<HTMLHeadingElement>(null);
   const subRef = useRef<HTMLParagraphElement>(null);
   const ctaRef = useRef<HTMLDivElement>(null);
 
   useGSAP(
     () => {
-      if (!ringRef.current || !dotRef.current) return;
-      const textTargets = [headingRef.current, subRef.current, ctaRef.current];
+      if (!headingRef.current) return;
 
       if (prefersReducedMotion()) {
-        gsap.set(ringRef.current, { strokeDashoffset: 0 });
-        gsap.set(dotRef.current, { opacity: 1, scale: 1 });
-        gsap.set(textTargets, { opacity: 1, y: 0 });
+        gsap.set([headingRef.current, subRef.current, ctaRef.current], { opacity: 1, y: 0 });
         return;
       }
 
-      const ringLength = ringRef.current.getTotalLength();
-      gsap.set(ringRef.current, {
-        strokeDasharray: ringLength,
-        strokeDashoffset: ringLength,
-      });
-      gsap.set(dotRef.current, {
+      const split = new SplitText(headingRef.current, { type: "chars", charsClass: "char" });
+      gsap.set(split.chars, {
         opacity: 0,
-        scale: 0.3,
-        y: -20,
-        transformOrigin: "50% 50%",
+        y: 42,
+        rotateX: -70,
+        transformOrigin: "50% 100%",
+        transformPerspective: 600,
       });
-      gsap.set(textTargets, { opacity: 0, y: 16 });
+      gsap.set([subRef.current, ctaRef.current], { opacity: 0, y: 16 });
 
-      const tl = gsap.timeline({ delay: 0.2 });
-      tl.to(ringRef.current, {
-        strokeDashoffset: 0,
-        duration: 1.1,
-        ease: "power2.inOut",
+      const tl = gsap.timeline({ delay: 0.45 });
+      tl.to(split.chars, {
+        opacity: 1,
+        y: 0,
+        rotateX: 0,
+        duration: 0.85,
+        stagger: 0.014,
+        ease: "power3.out",
       })
-        .to(
-          dotRef.current,
-          { opacity: 1, scale: 1, y: 0, duration: 0.6, ease: "back.out(1.6)" },
-          "-=0.2"
-        )
-        .to(
-          textTargets,
-          { opacity: 1, y: 0, duration: 0.7, ease: "power2.out", stagger: 0.12 },
-          "-=0.75"
-        );
+        .to(subRef.current, { opacity: 1, y: 0, duration: 0.6, ease: "power2.out" }, "-=0.45")
+        .to(ctaRef.current, { opacity: 1, y: 0, duration: 0.6, ease: "power2.out" }, "-=0.4");
+
+      return () => {
+        split.revert();
+      };
     },
     { scope: sectionRef }
   );
@@ -61,32 +53,17 @@ export function Hero() {
     <section
       id="top"
       ref={sectionRef}
-      className="relative flex min-h-[100svh] items-center overflow-hidden pb-20 pt-28"
+      className="relative flex min-h-svh items-center overflow-hidden pb-20 pt-28"
     >
       <BackgroundRings />
       <div className="relative mx-auto flex w-full max-w-4xl flex-col items-center px-5 text-center sm:px-8">
-        <div className="mb-10 w-[104px] sm:w-[128px]">
-          <svg
-            viewBox="0 0 64 64"
-            fill="none"
-            role="img"
-            aria-label="Lupra logosu"
-            className="overflow-visible"
-          >
-            <path
-              ref={ringRef}
-              d="M35.82 10.33 A22 22 0 1 0 53.67 28.18"
-              stroke="#FFFFFF"
-              strokeWidth="6"
-              strokeLinecap="round"
-            />
-            <circle ref={dotRef} cx="47.56" cy="16.44" r="5.5" fill="#818CF8" />
-          </svg>
+        <div className="mb-6 aspect-square w-55 sm:w-70 md:w-80">
+          <HeroScene />
         </div>
 
         <h1
           ref={headingRef}
-          className="max-w-3xl font-heading text-4xl font-semibold leading-[1.15] tracking-tight text-white sm:text-5xl md:text-6xl"
+          className="max-w-3xl text-balance font-heading text-4xl font-semibold leading-[1.15] tracking-tight text-white sm:text-5xl md:text-6xl"
         >
           Döngüyü tamamlayan yapay zeka agent’ları.
         </h1>

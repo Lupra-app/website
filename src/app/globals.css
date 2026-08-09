@@ -70,6 +70,16 @@ html.lenis body {
   border-radius: 2px;
 }
 
+html.has-custom-cursor,
+html.has-custom-cursor * {
+  cursor: none !important;
+}
+
+html.has-custom-cursor input,
+html.has-custom-cursor textarea {
+  cursor: text !important;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

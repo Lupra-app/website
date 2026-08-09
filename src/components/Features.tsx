@@ -96,28 +96,50 @@ const FEATURES: { title: string; desc: string; icon: ReactNode }[] = [
 
 function FeatureCard({ title, desc, icon }: { title: string; desc: string; icon: ReactNode }) {
   const cardRef = useRef<HTMLDivElement>(null);
+  const iconRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const el = cardRef.current;
-    if (!el || prefersReducedMotion()) return;
+    const iconEl = iconRef.current;
+    if (!el || !iconEl || prefersReducedMotion()) return;
+
+    gsap.set(el, { transformPerspective: 800, transformStyle: "preserve-3d" });
 
     const xTo = gsap.quickTo(el, "x", { duration: 0.5, ease: "power3.out" });
     const yTo = gsap.quickTo(el, "y", { duration: 0.5, ease: "power3.out" });
+    const rotateXTo = gsap.quickTo(el, "rotateX", { duration: 0.5, ease: "power3.out" });
+    const rotateYTo = gsap.quickTo(el, "rotateY", { duration: 0.5, ease: "power3.out" });
+    const scaleTo = gsap.quickTo(el, "scale", { duration: 0.5, ease: "power3.out" });
+    const iconZTo = gsap.quickTo(iconEl, "z", { duration: 0.5, ease: "power3.out" });
 
     const onMove = (e: MouseEvent) => {
       const rect = el.getBoundingClientRect();
-      xTo((e.clientX - rect.left - rect.width / 2) * 0.06);
-      yTo((e.clientY - rect.top - rect.height / 2) * 0.06);
+      const relX = (e.clientX - rect.left) / rect.width - 0.5;
+      const relY = (e.clientY - rect.top) / rect.height - 0.5;
+      xTo(relX * 12);
+      yTo(relY * 12);
+      rotateYTo(relX * 12);
+      rotateXTo(relY * -12);
+    };
+    const onEnter = () => {
+      scaleTo(1.02);
+      iconZTo(28);
     };
     const onLeave = () => {
       xTo(0);
       yTo(0);
+      rotateXTo(0);
+      rotateYTo(0);
+      scaleTo(1);
+      iconZTo(0);
     };
 
     el.addEventListener("mousemove", onMove);
+    el.addEventListener("mouseenter", onEnter);
     el.addEventListener("mouseleave", onLeave);
     return () => {
       el.removeEventListener("mousemove", onMove);
+      el.removeEventListener("mouseenter", onEnter);
       el.removeEventListener("mouseleave", onLeave);
     };
   }, []);
@@ -126,9 +148,12 @@ function FeatureCard({ title, desc, icon }: { title: string; desc: string; icon:
     <div
       ref={cardRef}
       data-feature-card
+      data-cursor-hover
       className="rounded-2xl border border-white/[0.06] bg-bg-raised/60 p-6 transition-colors hover:border-white/[0.14]"
     >
-      <div className="text-white">{icon}</div>
+      <div ref={iconRef} className="text-white">
+        {icon}
+      </div>
       <h3 className="mt-5 font-heading text-lg font-semibold text-white">{title}</h3>
       <p className="mt-2 text-sm leading-relaxed text-muted">{desc}</p>
     </div>
