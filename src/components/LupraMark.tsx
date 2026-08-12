@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, type RefObject } from "react";
 import * as THREE from "three";
 import { useFrame } from "@react-three/fiber";
+import { Billboard } from "@react-three/drei";
 import {
   RING_RADIUS,
   RING_TUBE,
@@ -22,6 +23,29 @@ const TILT_LERP_SPEED = 3.5;
 // the ring's own perpendicular (Z) axis, which keeps the silhouette constant
 // and only orbits the gap/dot around it — always legible.
 const BASE_TILT_X = THREE.MathUtils.degToRad(-27);
+
+// Radial falloff for the dot's fake-glow billboard, computed per-pixel in the
+// fragment shader rather than baked into a flat sphere — a solid mesh has no
+// way to fade from bright center to transparent edge, so it just reads as a
+// hard-edged disc instead of a soft halo.
+const GLOW_VERTEX_SHADER = /* glsl */ `
+  varying vec2 vUv;
+  void main() {
+    vUv = uv;
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+  }
+`;
+const GLOW_FRAGMENT_SHADER = /* glsl */ `
+  varying vec2 vUv;
+  uniform vec3 uColor;
+  uniform float uOpacity;
+  void main() {
+    float d = distance(vUv, vec2(0.5));
+    float falloff = pow(smoothstep(0.5, 0.0, d), 1.8);
+    gl_FragColor = vec4(uColor, falloff * uOpacity);
+  }
+`;
+const GLOW_SIZE = RING_TUBE * 1.6 * 5;
 
 export function LupraMark({
   target,
@@ -70,16 +94,20 @@ export function LupraMark({
       }),
     []
   );
-  // Cheap fake bloom: an oversized, unlit, additively-blended shell behind the
-  // dot. Reads as a soft glow at a fraction of the GPU cost of a real
-  // postprocessing bloom pass — worth it since this canvas renders full-screen
-  // for the entire scroll journey, including on mobile.
+  // Cheap fake bloom: a camera-facing radial-gradient billboard behind the
+  // dot, additively blended. Reads as a soft glow at a fraction of the GPU
+  // cost of a real postprocessing bloom pass — worth it since this canvas
+  // renders full-screen for the entire scroll journey, including on mobile.
   const glowMaterial = useMemo(
     () =>
-      new THREE.MeshBasicMaterial({
-        color: "#818CF8",
+      new THREE.ShaderMaterial({
+        uniforms: {
+          uColor: { value: new THREE.Color("#818CF8") },
+          uOpacity: { value: 0.6 },
+        },
+        vertexShader: GLOW_VERTEX_SHADER,
+        fragmentShader: GLOW_FRAGMENT_SHADER,
         transparent: true,
-        opacity: 0.35,
         blending: THREE.AdditiveBlending,
         depthWrite: false,
         toneMapped: false,
@@ -131,7 +159,7 @@ export function LupraMark({
     }
     ringMaterial.opacity = t.opacity;
     dotMaterial.opacity = t.opacity;
-    glowMaterial.opacity = 0.35 * t.opacity;
+    glowMaterial.uniforms.uOpacity.value = 0.6 * t.opacity;
     if (dotGroupRef.current) dotGroupRef.current.scale.setScalar(t.dotPulse);
 
     if (!animated) return;
@@ -187,9 +215,11 @@ export function LupraMark({
             <mesh material={dotMaterial}>
               <sphereGeometry args={[RING_TUBE * 1.6, 32, 32]} />
             </mesh>
-            <mesh material={glowMaterial}>
-              <sphereGeometry args={[RING_TUBE * 1.6 * 2.4, 16, 16]} />
-            </mesh>
+            <Billboard>
+              <mesh material={glowMaterial} renderOrder={1}>
+                <planeGeometry args={[GLOW_SIZE, GLOW_SIZE]} />
+              </mesh>
+            </Billboard>
           </group>
         </group>
       </group>
