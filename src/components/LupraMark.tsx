@@ -60,67 +60,74 @@ export function LupraMark({
   const tiltGroupRef = useRef<THREE.Group>(null);
   const dotGroupRef = useRef<THREE.Group>(null);
 
+  // Materials are genuinely mutable (opacity/uniforms get written every
+  // frame below) so they're built once via a ref, not useMemo — a value
+  // returned from useMemo is treated as immutable by the hooks linter, and
+  // mutating it after render is exactly the bug that rule exists to catch.
   // Shared across the torus + both end caps so they read as one continuous
   // material (matches the brand mark's single-stroke silhouette), and gives
   // the polished, faintly clearcoated "soft ceramic" look instead of the
   // flat, chalky matte of a plain roughness-0.9 standard material.
-  const ringMaterial = useMemo(
-    () =>
-      new THREE.MeshPhysicalMaterial({
-        color: "#101828",
-        roughness: 0.42,
-        metalness: 0.15,
-        clearcoat: 0.6,
-        clearcoatRoughness: 0.3,
-        envMapIntensity: 1.1,
-        transparent: true,
-        opacity: 1,
-      }),
-    []
-  );
-  const dotMaterial = useMemo(
-    () =>
-      new THREE.MeshPhysicalMaterial({
-        color: "#4F46E5",
-        roughness: 0.16,
-        metalness: 0.1,
-        clearcoat: 1,
-        clearcoatRoughness: 0.12,
-        envMapIntensity: 1.6,
-        emissive: new THREE.Color("#4338CA"),
-        emissiveIntensity: 0.55,
-        transparent: true,
-        opacity: 1,
-      }),
-    []
-  );
+  const ringMaterialRef = useRef<THREE.MeshPhysicalMaterial | null>(null);
+  if (ringMaterialRef.current === null) {
+    ringMaterialRef.current = new THREE.MeshPhysicalMaterial({
+      color: "#101828",
+      roughness: 0.42,
+      metalness: 0.15,
+      clearcoat: 0.6,
+      clearcoatRoughness: 0.3,
+      envMapIntensity: 1.1,
+      transparent: true,
+      opacity: 1,
+    });
+  }
+  const ringMaterial = ringMaterialRef.current;
+
+  const dotMaterialRef = useRef<THREE.MeshPhysicalMaterial | null>(null);
+  if (dotMaterialRef.current === null) {
+    dotMaterialRef.current = new THREE.MeshPhysicalMaterial({
+      color: "#4F46E5",
+      roughness: 0.16,
+      metalness: 0.1,
+      clearcoat: 1,
+      clearcoatRoughness: 0.12,
+      envMapIntensity: 1.6,
+      emissive: new THREE.Color("#4338CA"),
+      emissiveIntensity: 0.55,
+      transparent: true,
+      opacity: 1,
+    });
+  }
+  const dotMaterial = dotMaterialRef.current;
+
   // Cheap fake bloom: a camera-facing radial-gradient billboard behind the
   // dot, additively blended. Reads as a soft glow at a fraction of the GPU
   // cost of a real postprocessing bloom pass — worth it since this canvas
   // renders full-screen for the entire scroll journey, including on mobile.
-  const glowMaterial = useMemo(
-    () =>
-      new THREE.ShaderMaterial({
-        uniforms: {
-          uColor: { value: new THREE.Color("#818CF8") },
-          uOpacity: { value: 0.6 },
-        },
-        vertexShader: GLOW_VERTEX_SHADER,
-        fragmentShader: GLOW_FRAGMENT_SHADER,
-        transparent: true,
-        blending: THREE.AdditiveBlending,
-        depthWrite: false,
-        toneMapped: false,
-      }),
-    []
-  );
+  const glowMaterialRef = useRef<THREE.ShaderMaterial | null>(null);
+  if (glowMaterialRef.current === null) {
+    glowMaterialRef.current = new THREE.ShaderMaterial({
+      uniforms: {
+        uColor: { value: new THREE.Color("#818CF8") },
+        uOpacity: { value: 0.6 },
+      },
+      vertexShader: GLOW_VERTEX_SHADER,
+      fragmentShader: GLOW_FRAGMENT_SHADER,
+      transparent: true,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+      toneMapped: false,
+    });
+  }
+  const glowMaterial = glowMaterialRef.current;
+
   useEffect(() => {
     return () => {
-      ringMaterial.dispose();
-      dotMaterial.dispose();
-      glowMaterial.dispose();
+      ringMaterialRef.current?.dispose();
+      dotMaterialRef.current?.dispose();
+      glowMaterialRef.current?.dispose();
     };
-  }, [ringMaterial, dotMaterial, glowMaterial]);
+  }, []);
 
   const { dotPos, capA, capB } = useMemo(() => {
     const dotAngle = THREE.MathUtils.degToRad(RING_DOT_ANGLE_DEG);
