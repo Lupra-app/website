@@ -34,9 +34,48 @@ export function LupraMark({
   const scrollGroupRef = useRef<THREE.Group>(null);
   const spinGroupRef = useRef<THREE.Group>(null);
   const tiltGroupRef = useRef<THREE.Group>(null);
-  const ringMatRef = useRef<THREE.MeshStandardMaterial>(null);
-  const dotMatRef = useRef<THREE.MeshStandardMaterial>(null);
   const dotMeshRef = useRef<THREE.Mesh>(null);
+
+  // Shared across the torus + both end caps so they read as one continuous
+  // material (matches the brand mark's single-stroke silhouette), and gives
+  // the polished, faintly clearcoated "soft ceramic" look instead of the
+  // flat, chalky matte of a plain roughness-0.9 standard material.
+  const ringMaterial = useMemo(
+    () =>
+      new THREE.MeshPhysicalMaterial({
+        color: "#101828",
+        roughness: 0.42,
+        metalness: 0.15,
+        clearcoat: 0.6,
+        clearcoatRoughness: 0.3,
+        envMapIntensity: 1.1,
+        transparent: true,
+        opacity: 1,
+      }),
+    []
+  );
+  const dotMaterial = useMemo(
+    () =>
+      new THREE.MeshPhysicalMaterial({
+        color: "#4F46E5",
+        roughness: 0.16,
+        metalness: 0.1,
+        clearcoat: 1,
+        clearcoatRoughness: 0.12,
+        envMapIntensity: 1.6,
+        emissive: new THREE.Color("#4338CA"),
+        emissiveIntensity: 0.55,
+        transparent: true,
+        opacity: 1,
+      }),
+    []
+  );
+  useEffect(() => {
+    return () => {
+      ringMaterial.dispose();
+      dotMaterial.dispose();
+    };
+  }, [ringMaterial, dotMaterial]);
 
   const { dotPos, capA, capB } = useMemo(() => {
     const dotAngle = THREE.MathUtils.degToRad(RING_DOT_ANGLE_DEG);
@@ -73,8 +112,8 @@ export function LupraMark({
       scrollGroupRef.current.position.set(t.x, t.y, t.z);
       scrollGroupRef.current.scale.setScalar(t.scale);
     }
-    if (ringMatRef.current) ringMatRef.current.opacity = t.opacity;
-    if (dotMatRef.current) dotMatRef.current.opacity = t.opacity;
+    ringMaterial.opacity = t.opacity;
+    dotMaterial.opacity = t.opacity;
     if (dotMeshRef.current) dotMeshRef.current.scale.setScalar(t.dotPulse);
 
     if (!animated) return;
@@ -105,47 +144,29 @@ export function LupraMark({
     <group ref={scrollGroupRef}>
       <group ref={tiltGroupRef} rotation={[BASE_TILT_X, 0, 0]}>
         <group ref={spinGroupRef}>
-          <mesh>
+          <mesh material={ringMaterial}>
             <torusGeometry
               args={[
                 RING_RADIUS,
                 RING_TUBE,
-                24,
-                100,
+                32,
+                160,
                 THREE.MathUtils.degToRad(RING_SWEEP_DEG),
               ]}
               onUpdate={(geo) => geo.rotateZ(THREE.MathUtils.degToRad(RING_ROTATE_DEG))}
             />
-            <meshStandardMaterial
-              ref={ringMatRef}
-              color="#101828"
-              roughness={0.9}
-              metalness={0}
-              transparent
-              opacity={1}
-            />
           </mesh>
 
           {/* Rounded caps at the open ends of the arc, echoing the brand mark's round linecap. */}
-          <mesh position={capA}>
-            <sphereGeometry args={[RING_TUBE, 20, 20]} />
-            <meshStandardMaterial color="#101828" roughness={0.9} metalness={0} />
+          <mesh position={capA} material={ringMaterial}>
+            <sphereGeometry args={[RING_TUBE, 32, 32]} />
           </mesh>
-          <mesh position={capB}>
-            <sphereGeometry args={[RING_TUBE, 20, 20]} />
-            <meshStandardMaterial color="#101828" roughness={0.9} metalness={0} />
+          <mesh position={capB} material={ringMaterial}>
+            <sphereGeometry args={[RING_TUBE, 32, 32]} />
           </mesh>
 
-          <mesh ref={dotMeshRef} position={dotPos}>
-            <sphereGeometry args={[RING_TUBE * 1.6, 24, 24]} />
-            <meshStandardMaterial
-              ref={dotMatRef}
-              color="#4F46E5"
-              roughness={0.55}
-              metalness={0}
-              transparent
-              opacity={1}
-            />
+          <mesh ref={dotMeshRef} position={dotPos} material={dotMaterial}>
+            <sphereGeometry args={[RING_TUBE * 1.6, 32, 32]} />
           </mesh>
         </group>
       </group>
