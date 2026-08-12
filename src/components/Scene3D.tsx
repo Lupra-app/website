@@ -2,6 +2,7 @@
 
 import { useRef } from "react";
 import { Canvas } from "@react-three/fiber";
+import { Environment, Lightformer } from "@react-three/drei";
 import { gsap, useGSAP, ScrollTrigger, prefersReducedMotion } from "@/lib/gsap";
 import {
   CAMERA_FOV,
@@ -12,6 +13,19 @@ import {
   type SceneTarget,
 } from "@/lib/scene3d";
 import { LupraMark } from "./LupraMark";
+
+// A small virtual softbox rig, not a photo HDRI — bakes once (frames={1}) into
+// a tiny cubemap so the clearcoat mark gets real specular reflections/rim
+// light without fetching an external environment texture over the network.
+function StudioLighting() {
+  return (
+    <Environment resolution={128} frames={1}>
+      <Lightformer form="rect" intensity={2.2} color="#ffffff" position={[-3, 2.5, 2]} scale={[3, 4, 1]} target={[0, 0, 0]} />
+      <Lightformer form="rect" intensity={1.1} color="#818CF8" position={[3, -1.5, 2.5]} scale={[3, 3, 1]} target={[0, 0, 0]} />
+      <Lightformer form="ring" intensity={3} color="#ffffff" position={[0, 0, -4]} scale={6} target={[0, 0, 0]} />
+    </Environment>
+  );
+}
 
 export function Scene3D() {
   const target = useRef<SceneTarget>(createSceneTarget({ scale: vhToScale(40) }));
@@ -117,9 +131,10 @@ export function Scene3D() {
         gl={{ alpha: true, antialias: true }}
         camera={{ fov: CAMERA_FOV, position: [0, 0, CAMERA_DISTANCE], near: 0.1, far: 100 }}
       >
-        <ambientLight intensity={1.5} />
-        <directionalLight position={[-2.5, 2.5, 3]} intensity={1.1} />
-        <directionalLight position={[2.5, -1.5, 2]} intensity={0.5} />
+        <ambientLight intensity={0.5} />
+        <directionalLight position={[-2.5, 2.5, 3]} intensity={0.9} />
+        <directionalLight position={[2.5, -1.5, 2]} intensity={0.4} />
+        <StudioLighting />
         <LupraMark target={target} animated={animated} />
       </Canvas>
     </div>
