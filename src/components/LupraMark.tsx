@@ -24,10 +24,28 @@ const TILT_LERP_SPEED = 3.5;
 // and only orbits the gap/dot around it — always legible.
 const BASE_TILT_X = THREE.MathUtils.degToRad(-27);
 
+// Shared prop values for the torus + both end caps so they read as one
+// continuous material (matches the brand mark's single-stroke silhouette).
+// Each <meshPhysicalMaterial> below still gets its own instance — R3F has no
+// cross-element material sharing — this constant just keeps the tuning in
+// one place. Clearcoat + moderate roughness gives the polished "soft
+// ceramic" look instead of the flat, chalky matte of the old roughness-0.9
+// standard material.
+const RING_MATERIAL_PROPS = {
+  color: "#101828",
+  roughness: 0.42,
+  metalness: 0.15,
+  clearcoat: 0.6,
+  clearcoatRoughness: 0.3,
+  envMapIntensity: 1.1,
+} as const;
+
 // Radial falloff for the dot's fake-glow billboard, computed per-pixel in the
 // fragment shader rather than baked into a flat sphere — a solid mesh has no
 // way to fade from bright center to transparent edge, so it just reads as a
-// hard-edged disc instead of a soft halo.
+// hard-edged disc instead of a soft halo. Cheap fake bloom like this costs a
+// fraction of a real postprocessing bloom pass — worth it since this canvas
+// renders full-screen for the entire scroll journey, including on mobile.
 const GLOW_VERTEX_SHADER = /* glsl */ `
   varying vec2 vUv;
   void main() {
@@ -46,6 +64,7 @@ const GLOW_FRAGMENT_SHADER = /* glsl */ `
   }
 `;
 const GLOW_SIZE = RING_TUBE * 1.6 * 5;
+const GLOW_BASE_OPACITY = 0.6;
 
 export function LupraMark({
   target,
@@ -61,73 +80,16 @@ export function LupraMark({
   const dotGroupRef = useRef<THREE.Group>(null);
 
   // Materials are genuinely mutable (opacity/uniforms get written every
-  // frame below) so they're built once via a ref, not useMemo — a value
-  // returned from useMemo is treated as immutable by the hooks linter, and
-  // mutating it after render is exactly the bug that rule exists to catch.
-  // Shared across the torus + both end caps so they read as one continuous
-  // material (matches the brand mark's single-stroke silhouette), and gives
-  // the polished, faintly clearcoated "soft ceramic" look instead of the
-  // flat, chalky matte of a plain roughness-0.9 standard material.
-  const ringMaterialRef = useRef<THREE.MeshPhysicalMaterial | null>(null);
-  if (ringMaterialRef.current === null) {
-    ringMaterialRef.current = new THREE.MeshPhysicalMaterial({
-      color: "#101828",
-      roughness: 0.42,
-      metalness: 0.15,
-      clearcoat: 0.6,
-      clearcoatRoughness: 0.3,
-      envMapIntensity: 1.1,
-      transparent: true,
-      opacity: 1,
-    });
-  }
-  const ringMaterial = ringMaterialRef.current;
-
-  const dotMaterialRef = useRef<THREE.MeshPhysicalMaterial | null>(null);
-  if (dotMaterialRef.current === null) {
-    dotMaterialRef.current = new THREE.MeshPhysicalMaterial({
-      color: "#4F46E5",
-      roughness: 0.16,
-      metalness: 0.1,
-      clearcoat: 1,
-      clearcoatRoughness: 0.12,
-      envMapIntensity: 1.6,
-      emissive: new THREE.Color("#4338CA"),
-      emissiveIntensity: 0.55,
-      transparent: true,
-      opacity: 1,
-    });
-  }
-  const dotMaterial = dotMaterialRef.current;
-
-  // Cheap fake bloom: a camera-facing radial-gradient billboard behind the
-  // dot, additively blended. Reads as a soft glow at a fraction of the GPU
-  // cost of a real postprocessing bloom pass — worth it since this canvas
-  // renders full-screen for the entire scroll journey, including on mobile.
-  const glowMaterialRef = useRef<THREE.ShaderMaterial | null>(null);
-  if (glowMaterialRef.current === null) {
-    glowMaterialRef.current = new THREE.ShaderMaterial({
-      uniforms: {
-        uColor: { value: new THREE.Color("#818CF8") },
-        uOpacity: { value: 0.6 },
-      },
-      vertexShader: GLOW_VERTEX_SHADER,
-      fragmentShader: GLOW_FRAGMENT_SHADER,
-      transparent: true,
-      blending: THREE.AdditiveBlending,
-      depthWrite: false,
-      toneMapped: false,
-    });
-  }
-  const glowMaterial = glowMaterialRef.current;
-
-  useEffect(() => {
-    return () => {
-      ringMaterialRef.current?.dispose();
-      dotMaterialRef.current?.dispose();
-      glowMaterialRef.current?.dispose();
-    };
-  }, []);
+  // frame below), so — like the group refs above — they're declared in JSX
+  // and only ever touched via .current inside useFrame/useEffect, never read
+  // during render. Reading a ref's value during render, or mutating a value
+  // returned from useMemo, both trip this project's hooks linter, which
+  // treats render as required to stay pure.
+  const ringMatRef = useRef<THREE.MeshPhysicalMaterial>(null);
+  const capAMatRef = useRef<THREE.MeshPhysicalMaterial>(null);
+  const capBMatRef = useRef<THREE.MeshPhysicalMaterial>(null);
+  const dotMatRef = useRef<THREE.MeshPhysicalMaterial>(null);
+  const glowMatRef = useRef<THREE.ShaderMaterial>(null);
 
   const { dotPos, capA, capB } = useMemo(() => {
     const dotAngle = THREE.MathUtils.degToRad(RING_DOT_ANGLE_DEG);
@@ -164,9 +126,13 @@ export function LupraMark({
       scrollGroupRef.current.position.set(t.x, t.y, t.z);
       scrollGroupRef.current.scale.setScalar(t.scale);
     }
-    ringMaterial.opacity = t.opacity;
-    dotMaterial.opacity = t.opacity;
-    glowMaterial.uniforms.uOpacity.value = 0.6 * t.opacity;
+    if (ringMatRef.current) ringMatRef.current.opacity = t.opacity;
+    if (capAMatRef.current) capAMatRef.current.opacity = t.opacity;
+    if (capBMatRef.current) capBMatRef.current.opacity = t.opacity;
+    if (dotMatRef.current) dotMatRef.current.opacity = t.opacity;
+    if (glowMatRef.current) {
+      glowMatRef.current.uniforms.uOpacity.value = GLOW_BASE_OPACITY * t.opacity;
+    }
     if (dotGroupRef.current) dotGroupRef.current.scale.setScalar(t.dotPulse);
 
     if (!animated) return;
@@ -197,7 +163,7 @@ export function LupraMark({
     <group ref={scrollGroupRef}>
       <group ref={tiltGroupRef} rotation={[BASE_TILT_X, 0, 0]}>
         <group ref={spinGroupRef}>
-          <mesh material={ringMaterial}>
+          <mesh>
             <torusGeometry
               args={[
                 RING_RADIUS,
@@ -208,23 +174,67 @@ export function LupraMark({
               ]}
               onUpdate={(geo) => geo.rotateZ(THREE.MathUtils.degToRad(RING_ROTATE_DEG))}
             />
+            <meshPhysicalMaterial
+              ref={ringMatRef}
+              {...RING_MATERIAL_PROPS}
+              transparent
+              opacity={1}
+            />
           </mesh>
 
           {/* Rounded caps at the open ends of the arc, echoing the brand mark's round linecap. */}
-          <mesh position={capA} material={ringMaterial}>
+          <mesh position={capA}>
             <sphereGeometry args={[RING_TUBE, 32, 32]} />
+            <meshPhysicalMaterial
+              ref={capAMatRef}
+              {...RING_MATERIAL_PROPS}
+              transparent
+              opacity={1}
+            />
           </mesh>
-          <mesh position={capB} material={ringMaterial}>
+          <mesh position={capB}>
             <sphereGeometry args={[RING_TUBE, 32, 32]} />
+            <meshPhysicalMaterial
+              ref={capBMatRef}
+              {...RING_MATERIAL_PROPS}
+              transparent
+              opacity={1}
+            />
           </mesh>
 
           <group ref={dotGroupRef} position={dotPos}>
-            <mesh material={dotMaterial}>
+            <mesh>
               <sphereGeometry args={[RING_TUBE * 1.6, 32, 32]} />
+              <meshPhysicalMaterial
+                ref={dotMatRef}
+                color="#4F46E5"
+                roughness={0.16}
+                metalness={0.1}
+                clearcoat={1}
+                clearcoatRoughness={0.12}
+                envMapIntensity={1.6}
+                emissive="#4338CA"
+                emissiveIntensity={0.55}
+                transparent
+                opacity={1}
+              />
             </mesh>
             <Billboard>
-              <mesh material={glowMaterial} renderOrder={1}>
+              <mesh renderOrder={1}>
                 <planeGeometry args={[GLOW_SIZE, GLOW_SIZE]} />
+                <shaderMaterial
+                  ref={glowMatRef}
+                  uniforms={{
+                    uColor: { value: new THREE.Color("#818CF8") },
+                    uOpacity: { value: GLOW_BASE_OPACITY },
+                  }}
+                  vertexShader={GLOW_VERTEX_SHADER}
+                  fragmentShader={GLOW_FRAGMENT_SHADER}
+                  transparent
+                  blending={THREE.AdditiveBlending}
+                  depthWrite={false}
+                  toneMapped={false}
+                />
               </mesh>
             </Billboard>
           </group>
