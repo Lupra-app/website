@@ -23,7 +23,8 @@ export function Scene3D() {
     const howEl = document.getElementById("how-it-works");
     const featuresEl = document.getElementById("features");
     const earlyEl = document.getElementById("early-access");
-    if (!heroEl || !howEl || !featuresEl || !earlyEl) return;
+    const footerEl = document.querySelector("footer");
+    if (!heroEl || !howEl || !featuresEl || !earlyEl || !footerEl) return;
 
     const mm = gsap.matchMedia();
 
@@ -62,9 +63,32 @@ export function Scene3D() {
         .to(target.current, { dotPulse: 1.35, duration: 0.4, ease: "power2.out" })
         .to(target.current, { dotPulse: 1, duration: 0.4, ease: "power2.inOut" });
 
+      // The choreography above settles once early-access's bottom is reached —
+      // but the canvas is fixed to the viewport, so without this it stays
+      // parked mid-screen at 0.5 opacity forever, floating over the footer.
+      // Fade it out over the footer's own scroll length instead.
+      const fadeOut = gsap.to(wrapperRef.current, {
+        opacity: 0,
+        ease: "none",
+        scrollTrigger: {
+          trigger: footerEl,
+          start: "top bottom",
+          // Fixed pixel distance rather than an element-relative end: the
+          // footer is the last thing on the page, so its own bottom edge
+          // can land a few px short of the true max scroll (web font swap
+          // reflow) and strand the fade shy of 0. A distance comfortably
+          // inside the footer's height always fully completes before the
+          // page runs out of room to scroll.
+          end: "+=80",
+          scrub: true,
+        },
+      });
+
       return () => {
         tl.scrollTrigger?.kill();
         tl.kill();
+        fadeOut.scrollTrigger?.kill();
+        fadeOut.kill();
       };
     });
 
