@@ -22,6 +22,16 @@ const TILT_LERP_SPEED = 3.5;
 // collapsing it into an illegible sliver. The idle spin instead turns around
 // the ring's own perpendicular (Z) axis, which keeps the silhouette constant
 // and only orbits the gap/dot around it — always legible.
+//
+// This ONLY holds if tilt is applied before spin in the transform chain
+// (tiltGroup nested inside spinGroup, so tilt is closer to the mesh). Tilt
+// (X) and spin (Z) don't commute: spin-then-tilt — the previous
+// nesting — bakes the fixed tilt onto whatever orientation the spin already
+// produced, so the apparent foreshortening of the gap/dot changes over the
+// rotation instead of staying put, and the dot visibly drifts out of the
+// gap over a cycle. Tilt-then-spin fixes the shape once and rotates that
+// fixed shape rigidly around the camera-facing axis, so the dot's position
+// within the gap reads the same at every point in the spin.
 const BASE_TILT_X = THREE.MathUtils.degToRad(-27);
 
 // Shared prop values for the torus + both end caps so they read as one
@@ -161,8 +171,8 @@ export function LupraMark({
 
   return (
     <group ref={scrollGroupRef}>
-      <group ref={tiltGroupRef} rotation={[BASE_TILT_X, 0, 0]}>
-        <group ref={spinGroupRef}>
+      <group ref={spinGroupRef}>
+        <group ref={tiltGroupRef} rotation={[BASE_TILT_X, 0, 0]}>
           <mesh>
             <torusGeometry
               args={[
