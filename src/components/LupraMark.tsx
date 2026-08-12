@@ -34,7 +34,7 @@ export function LupraMark({
   const scrollGroupRef = useRef<THREE.Group>(null);
   const spinGroupRef = useRef<THREE.Group>(null);
   const tiltGroupRef = useRef<THREE.Group>(null);
-  const dotMeshRef = useRef<THREE.Mesh>(null);
+  const dotGroupRef = useRef<THREE.Group>(null);
 
   // Shared across the torus + both end caps so they read as one continuous
   // material (matches the brand mark's single-stroke silhouette), and gives
@@ -70,12 +70,29 @@ export function LupraMark({
       }),
     []
   );
+  // Cheap fake bloom: an oversized, unlit, additively-blended shell behind the
+  // dot. Reads as a soft glow at a fraction of the GPU cost of a real
+  // postprocessing bloom pass — worth it since this canvas renders full-screen
+  // for the entire scroll journey, including on mobile.
+  const glowMaterial = useMemo(
+    () =>
+      new THREE.MeshBasicMaterial({
+        color: "#818CF8",
+        transparent: true,
+        opacity: 0.35,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+        toneMapped: false,
+      }),
+    []
+  );
   useEffect(() => {
     return () => {
       ringMaterial.dispose();
       dotMaterial.dispose();
+      glowMaterial.dispose();
     };
-  }, [ringMaterial, dotMaterial]);
+  }, [ringMaterial, dotMaterial, glowMaterial]);
 
   const { dotPos, capA, capB } = useMemo(() => {
     const dotAngle = THREE.MathUtils.degToRad(RING_DOT_ANGLE_DEG);
@@ -114,7 +131,8 @@ export function LupraMark({
     }
     ringMaterial.opacity = t.opacity;
     dotMaterial.opacity = t.opacity;
-    if (dotMeshRef.current) dotMeshRef.current.scale.setScalar(t.dotPulse);
+    glowMaterial.opacity = 0.35 * t.opacity;
+    if (dotGroupRef.current) dotGroupRef.current.scale.setScalar(t.dotPulse);
 
     if (!animated) return;
 
@@ -165,9 +183,14 @@ export function LupraMark({
             <sphereGeometry args={[RING_TUBE, 32, 32]} />
           </mesh>
 
-          <mesh ref={dotMeshRef} position={dotPos} material={dotMaterial}>
-            <sphereGeometry args={[RING_TUBE * 1.6, 32, 32]} />
-          </mesh>
+          <group ref={dotGroupRef} position={dotPos}>
+            <mesh material={dotMaterial}>
+              <sphereGeometry args={[RING_TUBE * 1.6, 32, 32]} />
+            </mesh>
+            <mesh material={glowMaterial}>
+              <sphereGeometry args={[RING_TUBE * 1.6 * 2.4, 16, 16]} />
+            </mesh>
+          </group>
         </group>
       </group>
     </group>
