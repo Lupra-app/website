@@ -36,12 +36,18 @@ const IDLE_SPIN_RAD_PER_SEC = 0.08;
 /** Total scroll-driven roll across the whole journey (~1.25 turns). */
 const SCROLL_SPIN_RAD = Math.PI * 2.5;
 
-// Hero resting pose. Lifted above dead centre on purpose: the front half of
-// the mark paints over the headline, and at y = 0 it swallowed whole syllables
-// of both lines. Raised, only the first line is grazed — by the two near
-// vertical side strands, which cost a glyph rather than a word — and the
-// value proposition on line two stays completely clear.
-const HERO_Y = 0.42;
+// Hero resting pose: the mark sits fully above the headline, in the room the
+// hero's spacer div already reserves for it.
+//
+// It cannot rest *over* the headline now that its front half paints on top of
+// the text. Centred, the two side strands ate a syllable out of each line;
+// nudged down, the bottom arc runs horizontally along a line and takes a whole
+// word. Neither is acceptable for the page's primary message, and no vertical
+// offset avoids both — the headline is two lines tall and the ring is taller
+// still. So the landing state stays clean and legible, and the pass-through
+// effect plays on scroll instead, where it is transient and deliberate: the
+// mark sweeps down through this headline the moment the user starts scrolling.
+const HERO_Y = 0.66;
 const HERO_SCALE_VH = 42;
 
 /**
