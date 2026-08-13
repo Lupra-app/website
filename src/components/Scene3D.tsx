@@ -167,21 +167,42 @@ export function Scene3DProvider({ children }: { children: ReactNode }) {
         },
       });
 
-      // Hero -> "Nasıl çalışır": drifts left and shrinks, crossing the heading.
+      // Beat 1 — get clear of the hero headline, fast.
+      //
+      // The mark is fixed to the viewport and the headline sits just below it,
+      // so as the page scrolls the headline *always* travels up through the
+      // mark's horizontal band. No vertical choreography can avoid that; only
+      // horizontal separation can. Hence the front-loaded `power3.out` and the
+      // short duration — most of the leftward move is spent in the first
+      // handful of scrolled pixels, before the headline arrives. Lifting `y`
+      // at the same time buys a little extra room by letting the headline pass
+      // underneath sooner. (A `sine.inOut` here — slow at both ends — is
+      // exactly what made the mark wade straight down through the headline.)
       tl.to(
         t,
-        { x: vwToX(-0.5), y: -0.15, scale: vhToScale(26), duration: 1.4, ease: "sine.inOut" },
+        {
+          x: vwToX(-0.72),
+          y: 0.86,
+          scale: vhToScale(38),
+          duration: 0.8,
+          ease: "power3.out",
+        },
         0
       )
-        // Travels down the left edge alongside the numbered steps. Bounded (not
-        // cumulative) so it can never drift out of the fixed viewport.
+        // Beat 2 — swing back in and descend into the "Nasıl çalışır" column.
+        .to(t, { x: vwToX(-0.42), y: -0.05, duration: 1.5, ease: "sine.inOut" }, ">-0.15")
+        // Beat 3 — travel down the left column alongside the numbered steps.
+        // Bounded (not cumulative) so it can never drift out of the viewport.
         .to(t, { y: -1.15, duration: 1.6, ease: "sine.inOut" }, ">-0.3")
-        // Sweeps left -> right through the feature cards.
-        .to(t, { x: vwToX(0.5), y: -0.55, duration: 1.5, ease: "sine.inOut" }, ">-0.35")
-        // Returns to centre, scales up and settles over the signup card.
+        // Beat 4 — the long sweep across the feature cards. Deliberately the
+        // slowest beat in the timeline: it covers the most screen distance, so
+        // matching the others' duration made it read as a dart rather than a
+        // drift.
+        .to(t, { x: vwToX(0.5), y: -0.55, duration: 2.8, ease: "sine.inOut" }, ">-0.35")
+        // Beat 5 — return to centre, scale up and settle over the signup card.
         .to(
           t,
-          { x: 0, y: 0, scale: vhToScale(52), opacity: 0.55, duration: 1.5, ease: "sine.inOut" },
+          { x: 0, y: 0, scale: vhToScale(52), opacity: 0.55, duration: 1.6, ease: "sine.inOut" },
           ">-0.35"
         )
         // The loop closes: one gentle pulse of the indigo sphere.
