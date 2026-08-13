@@ -5,13 +5,13 @@ export const CAMERA_DISTANCE = 6;
 
 export const RING_GAP_DEG = 70;
 export const RING_SWEEP_DEG = 360 - RING_GAP_DEG;
-// The gap spans [RING_ROTATE_DEG - RING_GAP_DEG, RING_ROTATE_DEG] = [10deg, 80deg],
-// whose arithmetic midpoint is 45deg — but the ring is viewed under a fixed
-// -27deg tilt (see BASE_TILT_X in LupraMark), and that perspective
-// foreshortens one side of the gap more than the other, so 45deg reads as
-// visibly off-center. 57deg was tuned by eye against the rendered (tilted)
-// view to actually look centered.
-export const RING_DOT_ANGLE_DEG = 57;
+// The gap spans [RING_ROTATE_DEG - RING_GAP_DEG, RING_ROTATE_DEG] = [10deg, 80deg];
+// 45deg is the arithmetic midpoint. Verified against the actual rendered
+// projection (tilt + camera, via matrixWorld) that this is also where the
+// dot sits pixel-equidistant from both cap ends on screen — the fixed tilt
+// does foreshorten the two sides differently, but not enough to move the
+// balance point off the naive midpoint by more than ~1deg.
+export const RING_DOT_ANGLE_DEG = 45;
 export const RING_ROTATE_DEG = 80; // aligns the sweep's natural gap onto the brand's top-right gap
 
 export const RING_RADIUS = 1;

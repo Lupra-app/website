@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, type RefObject } from "react";
 import * as THREE from "three";
-import { useFrame, useThree } from "@react-three/fiber";
+import { useFrame } from "@react-three/fiber";
 import { Billboard } from "@react-three/drei";
 import {
   RING_RADIUS,
@@ -100,10 +100,6 @@ export function LupraMark({
   const capBMatRef = useRef<THREE.MeshPhysicalMaterial>(null);
   const dotMatRef = useRef<THREE.MeshPhysicalMaterial>(null);
   const glowMatRef = useRef<THREE.ShaderMaterial>(null);
-  const capAMeshRef = useRef<THREE.Mesh>(null);
-  const capBMeshRef = useRef<THREE.Mesh>(null);
-  const { camera } = useThree();
-  const debugLoggedRef = useRef(false);
 
   const { dotPos, capA, capB } = useMemo(() => {
     const dotAngle = THREE.MathUtils.degToRad(RING_DOT_ANGLE_DEG);
@@ -148,39 +144,6 @@ export function LupraMark({
       glowMatRef.current.uniforms.uOpacity.value = GLOW_BASE_OPACITY * t.opacity;
     }
     if (dotGroupRef.current) dotGroupRef.current.scale.setScalar(t.dotPulse);
-
-    if (
-      !debugLoggedRef.current &&
-      capAMeshRef.current &&
-      capBMeshRef.current &&
-      tiltGroupRef.current
-    ) {
-      debugLoggedRef.current = true;
-      const toNDC = (obj: THREE.Object3D) => {
-        const v = new THREE.Vector3();
-        obj.getWorldPosition(v);
-        v.project(camera);
-        return [v.x, v.y];
-      };
-      const capAndc = toNDC(capAMeshRef.current);
-      const capBndc = toNDC(capBMeshRef.current);
-      // Sweep candidate local angles through the SAME live matrixWorld
-      // (tilt+spin+scroll all baked in) used for the real caps/dot, so this
-      // uses ground truth instead of a hand-rolled reprojection.
-      const candidates: { angle: number; dot: number[] }[] = [];
-      for (let a = 10; a <= 80; a += 0.5) {
-        const rad = THREE.MathUtils.degToRad(a);
-        const local = new THREE.Vector3(RING_RADIUS * Math.cos(rad), RING_RADIUS * Math.sin(rad), 0);
-        local.applyMatrix4(tiltGroupRef.current.matrixWorld);
-        local.project(camera);
-        candidates.push({ angle: a, dot: [local.x, local.y] });
-      }
-      // eslint-disable-next-line no-console
-      console.log(
-        "DEBUG_POS",
-        JSON.stringify({ capA: capAndc, capB: capBndc, candidates })
-      );
-    }
 
     if (!animated) return;
 
@@ -230,7 +193,7 @@ export function LupraMark({
           </mesh>
 
           {/* Rounded caps at the open ends of the arc, echoing the brand mark's round linecap. */}
-          <mesh ref={capAMeshRef} position={capA}>
+          <mesh position={capA}>
             <sphereGeometry args={[RING_TUBE, 32, 32]} />
             <meshPhysicalMaterial
               ref={capAMatRef}
@@ -239,7 +202,7 @@ export function LupraMark({
               opacity={1}
             />
           </mesh>
-          <mesh ref={capBMeshRef} position={capB}>
+          <mesh position={capB}>
             <sphereGeometry args={[RING_TUBE, 32, 32]} />
             <meshPhysicalMaterial
               ref={capBMatRef}
