@@ -100,6 +100,7 @@ export function LupraMark({
   const capBMatRef = useRef<THREE.MeshPhysicalMaterial>(null);
   const dotMatRef = useRef<THREE.MeshPhysicalMaterial>(null);
   const glowMatRef = useRef<THREE.ShaderMaterial>(null);
+  const debugOnceRef = useRef(false);
 
   const { dotPos, capA, capB } = useMemo(() => {
     const dotAngle = THREE.MathUtils.degToRad(RING_DOT_ANGLE_DEG);
@@ -130,8 +131,57 @@ export function LupraMark({
     return () => window.removeEventListener("pointermove", onPointerMove);
   }, [animated]);
 
-  useFrame((_state, delta) => {
+  useFrame((state, delta) => {
     const t = target.current;
+    if (!debugOnceRef.current && tiltGroupRef.current) {
+      debugOnceRef.current = true;
+      const W = state.size.width;
+      const H = state.size.height;
+      const px = (angDeg: number) => {
+        const r = THREE.MathUtils.degToRad(angDeg);
+        const v = new THREE.Vector3(RING_RADIUS * Math.cos(r), RING_RADIUS * Math.sin(r), 0);
+        v.applyMatrix4(tiltGroupRef.current!.matrixWorld);
+        v.project(state.camera);
+        return [((v.x + 1) / 2) * W, ((1 - v.y) / 2) * H];
+      };
+      // Projected arc length along the centerline between two gap angles.
+      const arcLen = (a0: number, a1: number) => {
+        let sum = 0;
+        let prev = px(a0);
+        for (let a = a0 + 0.25; a <= a1 + 1e-6; a += 0.25) {
+          const cur = px(a);
+          sum += Math.hypot(cur[0] - prev[0], cur[1] - prev[1]);
+          prev = cur;
+        }
+        return sum;
+      };
+      const capBulge = THREE.MathUtils.radToDeg(Math.asin(RING_TUBE / RING_RADIUS));
+      const ballHalf = THREE.MathUtils.radToDeg(Math.asin((RING_TUBE * 1.6) / RING_RADIUS));
+      const gapLo = 360 + RING_ROTATE_DEG - 360 - (360 - RING_SWEEP_DEG) + (360 - RING_SWEEP_DEG); // noop guard
+      void gapLo;
+      const lo = RING_ROTATE_DEG - (360 - RING_SWEEP_DEG) + capBulge; // 10 + bulge
+      const hi = RING_ROTATE_DEG - capBulge; // 80 - bulge
+      let best = 45;
+      let bestDiff = Infinity;
+      const results: [number, number, number][] = [];
+      for (let a = lo + ballHalf; a <= hi - ballHalf; a += 0.25) {
+        const left = arcLen(lo, a - ballHalf);
+        const right = arcLen(a + ballHalf, hi);
+        results.push([a, left, right]);
+        if (Math.abs(left - right) < bestDiff) {
+          bestDiff = Math.abs(left - right);
+          best = a;
+        }
+      }
+      const cur = results.reduce((p, c) =>
+        Math.abs(c[0] - RING_DOT_ANGLE_DEG) < Math.abs(p[0] - RING_DOT_ANGLE_DEG) ? c : p
+      );
+      // eslint-disable-next-line no-console
+      console.log(
+        "DEBUG_ARC",
+        JSON.stringify({ best, current: RING_DOT_ANGLE_DEG, currentSides: [cur[1], cur[2]] })
+      );
+    }
     if (scrollGroupRef.current) {
       scrollGroupRef.current.position.set(t.x, t.y, t.z);
       scrollGroupRef.current.scale.setScalar(t.scale);
@@ -173,7 +223,13 @@ export function LupraMark({
     <group ref={scrollGroupRef}>
       <group ref={spinGroupRef}>
         <group ref={tiltGroupRef} rotation={[BASE_TILT_X, 0, 0]}>
-          <mesh>
+          {/* The arc's angular placement is the mesh's own rotation, NOT a
+              geo.rotateZ() in onUpdate: onUpdate re-fires on re-renders and
+              HMR patches, and mutating the geometry there accumulates the
+              rotation each time — the arc slowly walks around the ring in a
+              long-lived dev tab while the caps/dot stay put, exposing the
+              torus's flat end faces and stranding the dot outside the gap. */}
+          <mesh rotation={[0, 0, THREE.MathUtils.degToRad(RING_ROTATE_DEG)]}>
             <torusGeometry
               args={[
                 RING_RADIUS,
@@ -182,7 +238,6 @@ export function LupraMark({
                 160,
                 THREE.MathUtils.degToRad(RING_SWEEP_DEG),
               ]}
-              onUpdate={(geo) => geo.rotateZ(THREE.MathUtils.degToRad(RING_ROTATE_DEG))}
             />
             <meshPhysicalMaterial
               ref={ringMatRef}
