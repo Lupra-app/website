@@ -37,13 +37,34 @@ export function vwToX(fraction: number) {
   return fraction * (visibleWidth / 2);
 }
 
+/**
+ * The single source of truth for the mark's pose, shared by every canvas layer.
+ *
+ * Everything here is written by `Scene3DProvider` (GSAP timelines + one
+ * `gsap.ticker` loop) and only ever *read* inside each layer's `useFrame`. That
+ * split matters: the depth effect renders the same object in two independent
+ * WebGL contexts, and each canvas ticks on its own rAF with its own delta. Any
+ * value integrated per-canvas (a spin accumulated from `delta`, a damped tilt)
+ * would drift apart between the two, and the two halves of the mark would
+ * visibly separate. Integrating once here keeps them frame-locked.
+ */
 export type SceneTarget = {
   x: number;
   y: number;
   z: number;
   scale: number;
+  /** Choreography-driven fade (the scroll timeline dims the mark near the end). */
   opacity: number;
+  /** Global show/hide fade, kept separate so it can multiply `opacity` without two timelines fighting over one property. */
+  visibility: number;
   dotPulse: number;
+  /** Scroll-driven roll, in radians. Animated by the scroll timeline. */
+  scrollSpin: number;
+  /** Total roll actually applied: `scrollSpin` plus the free-running idle spin. */
+  spin: number;
+  /** Damped tilt, in radians — base pose plus pointer parallax. */
+  tiltX: number;
+  tiltY: number;
 };
 
 export function createSceneTarget(overrides: Partial<SceneTarget> = {}): SceneTarget {
@@ -53,7 +74,12 @@ export function createSceneTarget(overrides: Partial<SceneTarget> = {}): SceneTa
     z: 0,
     scale: vhToScale(40),
     opacity: 1,
+    visibility: 1,
     dotPulse: 1,
+    scrollSpin: 0,
+    spin: 0,
+    tiltX: 0,
+    tiltY: 0,
     ...overrides,
   };
 }

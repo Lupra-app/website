@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Inter, Poppins } from "next/font/google";
 import { SmoothScroll } from "@/components/SmoothScroll";
 import { CustomCursor } from "@/components/CustomCursor";
-import { Scene3D } from "@/components/Scene3D";
+import { Scene3DProvider, Scene3DBack, Scene3DFront } from "@/components/Scene3D";
 import "./globals.css";
 
 const poppins = Poppins({
@@ -45,9 +45,17 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="tr" className={`${poppins.variable} ${inter.variable}`}>
       <body className="min-h-screen bg-bg font-body text-white antialiased">
-        <Scene3D />
-        <CustomCursor />
-        <SmoothScroll>{children}</SmoothScroll>
+        {/* The mark straddles the page content: Scene3DBack draws the half
+            farther from the camera than the text plane, Scene3DFront draws the
+            nearer half on top. Both must stay inside the same provider — they
+            share one pose, and split rendering only holds together if neither
+            layer integrates its own animation state. */}
+        <Scene3DProvider>
+          <Scene3DBack />
+          <CustomCursor />
+          <SmoothScroll>{children}</SmoothScroll>
+          <Scene3DFront />
+        </Scene3DProvider>
       </body>
     </html>
   );
