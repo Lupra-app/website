@@ -226,7 +226,11 @@ export function Scene3DProvider({ children }: { children: ReactNode }) {
         // small first and only growing once back at x/y 0 keeps the growth
         // confined to the empty band above the signup card.
         .to(t, { x: 0, y: 0, duration: 1.0, ease: "sine.inOut" }, ">-0.35")
-        .to(t, { scale: vhToScale(52), opacity: 0.55, duration: 0.9, ease: "sine.inOut" }, ">-0.1")
+        // Held small for a beat after recentring: the page is short enough
+        // that the feature cards and the signup card are both still in the
+        // scroll range here, so growth waits for a bit more scroll distance
+        // to pass — letting the cards scroll further up — before it starts.
+        .to(t, { scale: vhToScale(38), opacity: 0.55, duration: 0.9, ease: "sine.inOut" }, ">+=0.75")
         // The loop closes: one gentle pulse of the indigo sphere.
         .to(t, { dotPulse: 1.3, duration: 0.45, ease: "sine.out" }, ">-0.2")
         .to(t, { dotPulse: 1, duration: 0.5, ease: "sine.inOut" });
