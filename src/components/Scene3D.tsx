@@ -218,12 +218,15 @@ export function Scene3DProvider({ children }: { children: ReactNode }) {
         // ring straight across both card titles on the way.
         .to(t, { y: -0.3, scale: vhToScale(15), duration: 1.0, ease: "sine.out" }, ">-0.05")
         .to(t, { x: vwToX(0.78), duration: 1.8, ease: "sine.inOut" }, ">-0.05")
-        // Beat 5 — return to centre, scale up and settle over the signup card.
-        .to(
-          t,
-          { x: 0, y: 0, scale: vhToScale(52), opacity: 0.55, duration: 1.6, ease: "sine.inOut" },
-          ">-0.35"
-        )
+        // Beat 5 — return to centre, then scale up and settle over the signup
+        // card. Also split, for the same reason as beat 4: growing to full
+        // size *while* still sliding back across the feature cards briefly
+        // turned the mark into the biggest, most solid shape it's been all
+        // page, right on top of the cards it had just cleared. Recentring
+        // small first and only growing once back at x/y 0 keeps the growth
+        // confined to the empty band above the signup card.
+        .to(t, { x: 0, y: 0, duration: 1.0, ease: "sine.inOut" }, ">-0.35")
+        .to(t, { scale: vhToScale(52), opacity: 0.55, duration: 0.9, ease: "sine.inOut" }, ">-0.1")
         // The loop closes: one gentle pulse of the indigo sphere.
         .to(t, { dotPulse: 1.3, duration: 0.45, ease: "sine.out" }, ">-0.2")
         .to(t, { dotPulse: 1, duration: 0.5, ease: "sine.inOut" });
