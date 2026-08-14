@@ -19,7 +19,7 @@ const STEPS = [
   },
   {
     title: "Teslim al",
-    desc: "Sonuç, ilerleme raporuyla birlikte önüne gelir — döngü kapanır.",
+    desc: "Sonucu, ilerleme raporuyla birlikte teslim alırsın.",
     progress: 1,
   },
 ];

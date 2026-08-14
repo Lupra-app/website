@@ -68,10 +68,11 @@ export function Hero() {
           ref={headingRef}
           className="max-w-3xl text-balance font-heading text-4xl font-semibold leading-[1.15] tracking-tight text-white sm:text-5xl md:text-6xl"
         >
-          Döngüyü tamamlayan yapay zeka agent’ları.
+          Operasyonel işlerini otomatikleştir.
         </h1>
         <p ref={subRef} className="mt-6 max-w-xl text-balance text-lg text-muted sm:text-xl">
-          Operasyonel işini devret. Lupra planlar, yürütür, sonuçlandırır.
+          Lupra’nın yapay zeka agent’ları planlar, yürütür, sonuçlandırır — sen sadece
+          yönü belirlersin.
         </p>
         <div ref={ctaRef} className="mt-10">
           <a

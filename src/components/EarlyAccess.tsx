@@ -123,7 +123,7 @@ export function EarlyAccess() {
           Erken erişime katıl
         </h2>
         <p className="mt-4 max-w-md text-muted">
-          Lupra aktif geliştirme aşamasında. İlk erişim listesine katıl.
+          Lupra aktif geliştirme aşamasında. Erken erişim listesine katıl, lansmanı ilk sen dene.
         </p>
 
         {submitted ? (
@@ -190,6 +190,7 @@ export function EarlyAccess() {
                 {error}
               </p>
             )}
+            <p className="mt-3 text-xs text-muted">Spam yok — sadece lansman duyurusu.</p>
           </div>
         )}
       </div>
