@@ -3,9 +3,13 @@
 import { useRef, useState, type FormEvent } from "react";
 import { gsap, useGSAP, prefersReducedMotion } from "@/lib/gsap";
 
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 export function EarlyAccess() {
   const [email, setEmail] = useState("");
   const [submitted, setSubmitted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const sectionRef = useRef<HTMLElement>(null);
   const cardRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -13,16 +17,31 @@ export function EarlyAccess() {
   const successCheckRef = useRef<SVGPathElement>(null);
   const successTextRef = useRef<HTMLParagraphElement>(null);
 
-  const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!email) return;
+    const trimmed = email.trim();
+    if (!EMAIL_RE.test(trimmed)) {
+      setError("Geçerli bir e-posta adresi gir.");
+      return;
+    }
 
-    // TODO: wire this up to a real endpoint once the backend is ready, e.g.
-    // POST /api/early-access with { email } and surface loading/error state.
-    console.log("Early access signup:", email);
+    setSubmitting(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/early-access", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: trimmed }),
+      });
+      if (!res.ok) throw new Error("request_failed");
 
-    setSubmitted(true);
-    setEmail("");
+      setSubmitted(true);
+      setEmail("");
+    } catch {
+      setError("Bir şeyler ters gitti, birazdan tekrar dene.");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   useGSAP(
@@ -135,35 +154,43 @@ export function EarlyAccess() {
             </p>
           </div>
         ) : (
-          <form
-            onSubmit={handleSubmit}
-            className="mt-8 flex w-full max-w-md flex-col gap-3 sm:flex-row"
-            noValidate
-          >
-            <label htmlFor="early-access-email" className="sr-only">
-              E-posta adresin
-            </label>
-            <input
-              id="early-access-email"
-              name="email"
-              type="email"
-              required
-              autoComplete="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="E-posta adresin"
-              aria-label="E-posta adresin"
-              className="w-full flex-1 rounded-full border border-white/10 bg-bg px-5 py-3 text-white placeholder:text-muted focus-visible:outline-2 focus-visible:outline-accent-light"
-            />
-            <button
-              ref={buttonRef}
-              type="submit"
-              data-cursor-hover
-              className="shrink-0 rounded-full bg-accent px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-accent-light focus-visible:outline-2 focus-visible:outline-accent-light"
-            >
-              Katıl
-            </button>
-          </form>
+          <div className="mt-8 w-full max-w-md">
+            <form onSubmit={handleSubmit} className="flex w-full flex-col gap-3 sm:flex-row">
+              <label htmlFor="early-access-email" className="sr-only">
+                E-posta adresin
+              </label>
+              <input
+                id="early-access-email"
+                name="email"
+                type="email"
+                required
+                autoComplete="email"
+                value={email}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  if (error) setError(null);
+                }}
+                placeholder="E-posta adresin"
+                aria-label="E-posta adresin"
+                aria-invalid={error ? true : undefined}
+                className="w-full flex-1 rounded-full border border-white/10 bg-bg px-5 py-3 text-white placeholder:text-muted focus-visible:outline-2 focus-visible:outline-accent-light"
+              />
+              <button
+                ref={buttonRef}
+                type="submit"
+                disabled={submitting}
+                data-cursor-hover
+                className="shrink-0 rounded-full bg-accent px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-accent-light focus-visible:outline-2 focus-visible:outline-accent-light disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {submitting ? "Gönderiliyor…" : "Katıl"}
+              </button>
+            </form>
+            {error && (
+              <p role="alert" className="mt-3 text-sm text-red-400">
+                {error}
+              </p>
+            )}
+          </div>
         )}
       </div>
     </section>
