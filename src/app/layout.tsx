@@ -20,16 +20,25 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://lupra.app"),
-  title: "Lupra — Döngüyü tamamlayan yapay zeka agent’ları",
+  title: "Lupra — Operasyonel İşlerini Otomatikleştiren AI Agent’lar",
   description:
-    "Lupra, operasyonel işlerini planlayan, yürüten ve sonuçlandıran Agent-as-a-Service platformudur. Erken erişime katıl.",
-  keywords: ["lupra", "yapay zeka agent", "agent as a service", "otomasyon", "ai agent"],
+    "Lupra, operasyonel işlerini planlayan, yürüten, sonuçlandıran yapay zeka agent platformu. İşini otomatikleştir, kontrol sende kalır. Erken erişime katıl.",
+  keywords: [
+    "lupra",
+    "yapay zeka agent",
+    "agent as a service",
+    "otomasyon",
+    "ai agent",
+    "operasyonel otomasyon",
+    "iş süreci otomasyonu",
+  ],
   alternates: {
     canonical: "https://lupra.app",
   },
   openGraph: {
-    title: "Lupra — Döngüyü tamamlayan yapay zeka agent’ları",
-    description: "Operasyonel işini devret. Lupra planlar, yürütür, sonuçlandırır.",
+    title: "Lupra — Operasyonel işlerini otomatikleştir",
+    description:
+      "Lupra’nın yapay zeka agent’ları planlar, yürütür, sonuçlandırır — sen sadece yönü belirlersin.",
     url: "https://lupra.app",
     siteName: "Lupra",
     images: [{ url: "/og-image.png", width: 1200, height: 630, alt: "Lupra" }],
@@ -38,8 +47,9 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "Lupra — Döngüyü tamamlayan yapay zeka agent’ları",
-    description: "Operasyonel işini devret. Lupra planlar, yürütür, sonuçlandırır.",
+    title: "Lupra — Operasyonel işlerini otomatikleştir",
+    description:
+      "Lupra’nın yapay zeka agent’ları planlar, yürütür, sonuçlandırır — sen sadece yönü belirlersin.",
     images: ["/og-image.png"],
   },
 };
@@ -54,7 +64,7 @@ const organizationJsonLd = {
   url: "https://lupra.app",
   logo: "https://lupra.app/icon.png",
   description:
-    "Lupra, operasyonel işlerini planlayan, yürüten ve sonuçlandıran Agent-as-a-Service platformudur.",
+    "Lupra, operasyonel işlerini planlayan, yürüten ve sonuçlandıran yapay zeka agent platformudur.",
   // sameAs (X/GitHub/LinkedIn) kasıtlı olarak boş: Footer.tsx'teki hesaplar
   // henüz doğrulanmadı. Google'a doğrulanmamış bir hesabı resmi Lupra
   // hesabı diye işaretletmek, sameAs eklememekten daha kötü bir hata.
