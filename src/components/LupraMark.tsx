@@ -139,6 +139,11 @@ export function LupraMark({
   useFrame(() => {
     const t = target.current;
     const alpha = t.opacity * t.visibility;
+    (window as unknown as { __debugTarget?: unknown }).__debugTarget = {
+      x: t.x,
+      y: t.y,
+      scale: t.scale,
+    };
 
     if (scrollGroupRef.current) {
       // Fully faded out (over the footer, or past the hero on mobile) means

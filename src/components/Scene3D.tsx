@@ -163,7 +163,11 @@ export function Scene3DProvider({ children }: { children: ReactNode }) {
           start: "top top",
           endTrigger: earlyEl,
           end: "bottom bottom",
-          scrub: 1.4,
+          // Whole journey plays out over one page's worth of scroll, so a
+          // fast wheel/trackpad flick used to yank the mark almost instantly
+          // from one beat to the next. A heavier scrub lag turns that snap
+          // into a catch-up glide without decoupling it from scroll position.
+          scrub: 2.2,
         },
       });
 
@@ -190,15 +194,30 @@ export function Scene3DProvider({ children }: { children: ReactNode }) {
         0
       )
         // Beat 2 — swing back in and descend into the "Nasıl çalışır" column.
-        .to(t, { x: vwToX(-0.42), y: -0.05, duration: 1.5, ease: "sine.inOut" }, ">-0.15")
+        // Shrunk from the hero's scale here on: the reserved left column sits
+        // directly under the section heading, so the ring's descent always
+        // crosses the heading's row at some point on the way down — small is
+        // what keeps that crossing brief instead of stamping over the words.
+        .to(t, { x: vwToX(-0.42), y: -0.05, scale: vhToScale(14), duration: 1.5, ease: "sine.inOut" }, ">-0.15")
         // Beat 3 — travel down the left column alongside the numbered steps.
         // Bounded (not cumulative) so it can never drift out of the viewport.
-        .to(t, { y: -1.15, duration: 1.6, ease: "sine.inOut" }, ">-0.3")
-        // Beat 4 — the long sweep across the feature cards. Deliberately the
-        // slowest beat in the timeline: it covers the most screen distance, so
-        // matching the others' duration made it read as a dart rather than a
-        // drift.
-        .to(t, { x: vwToX(0.5), y: -0.55, duration: 2.8, ease: "sine.inOut" }, ">-0.35")
+        // Small and off to the column's outer edge (x nudged further left of
+        // beat 2) rather than dead-centre: the last step's heading sits at
+        // this same height, in the column next door, and even at this scale
+        // dead-centre was still close enough to clip its first letter as the
+        // gap in the ring's sweep rotated past that edge mid-scroll.
+        .to(t, { x: vwToX(-0.5), y: -1.15, scale: vhToScale(13), duration: 1.6, ease: "sine.inOut" }, ">-0.3")
+        // Beat 4 — sweep past the feature cards. Unlike "Nasıl çalışır" this
+        // section has no reserved lane, and the 2-up card grid spans almost
+        // the full content width, so there's no horizontal gap to thread
+        // through. Split in two so the path goes up-then-across instead of a
+        // diagonal cutting straight through the grid: 4a clears the card
+        // row's height first (barely moving sideways), 4b does the sideways
+        // travel once already above the cards. A single diagonal tween from
+        // the steps column to the right edge — tried first — dragged the
+        // ring straight across both card titles on the way.
+        .to(t, { y: -0.3, scale: vhToScale(15), duration: 1.0, ease: "sine.out" }, ">-0.05")
+        .to(t, { x: vwToX(0.78), duration: 1.8, ease: "sine.inOut" }, ">-0.05")
         // Beat 5 — return to centre, scale up and settle over the signup card.
         .to(
           t,
