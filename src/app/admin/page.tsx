@@ -77,8 +77,16 @@ function StatCard({
   icon?: string;
   color?: string;
 }) {
+  const colorStyles = {
+    'from-blue-500': 'border-blue-500/50 bg-gradient-to-br from-blue-600/20 to-blue-900/10 hover:shadow-blue-500/30',
+    'from-purple-500': 'border-purple-500/50 bg-gradient-to-br from-purple-600/20 to-purple-900/10 hover:shadow-purple-500/30',
+    'from-gray-500': 'border-gray-500/30 bg-gradient-to-br from-gray-600/10 to-gray-900/5',
+  };
+
+  const baseClass = colorStyles[color as keyof typeof colorStyles] || colorStyles['from-gray-500'];
+
   const content = (
-    <div className={`group relative rounded-2xl border border-white/20 bg-gradient-to-br ${color || 'from-accent'} bg-opacity-5 backdrop-blur-md px-6 py-8 overflow-hidden transition-all hover:border-white/40 hover:bg-opacity-10 ${href && !disabled ? 'cursor-pointer' : ''}`}>
+    <div className={`group relative rounded-3xl border-2 ${baseClass} backdrop-blur-xl px-6 py-8 overflow-hidden transition-all hover:border-opacity-100 ${href && !disabled ? 'cursor-pointer hover:shadow-2xl' : ''}`}>
       {/* Glow effect */}
       <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
         <div className="absolute top-0 right-0 w-40 h-40 bg-accent/20 rounded-full blur-3xl" />

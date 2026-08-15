@@ -32,15 +32,15 @@ export default async function AdminLayout({
       {/* Base Background */}
       <div className="fixed inset-0 -z-50 bg-black/30" />
 
-      {/* 3D Background Logo - Deep Background */}
-      <div className="fixed inset-0 -z-40 opacity-5 pointer-events-none">
-        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-200 h-200 blur-3xl">
+      {/* 3D Background Logo - Very Small, Corner */}
+      <div className="fixed bottom-0 right-0 -z-40 opacity-3 pointer-events-none overflow-hidden">
+        <div className="w-96 h-96 blur-3xl">
           <Logo3D />
         </div>
       </div>
 
-      {/* Strong Glassmorphism Blur Effect */}
-      <div className="fixed inset-0 -z-30 backdrop-blur-2xl bg-gradient-to-b from-white/5 via-transparent to-white/5" />
+      {/* Very Strong Glassmorphism Blur Effect */}
+      <div className="fixed inset-0 -z-30 backdrop-blur-3xl bg-gradient-to-b from-black/40 via-black/20 to-black/40" />
 
       <div className="relative z-10 flex min-h-screen text-white">
         {/* Sidebar */}
@@ -78,8 +78,10 @@ export default async function AdminLayout({
       {/* Main */}
       <main className="flex-1 overflow-y-auto">
         <div className="p-8 max-w-7xl mx-auto">
-          <div className="rounded-3xl border border-white/30 bg-gradient-to-br from-white/15 to-white/5 backdrop-blur-2xl p-8 shadow-2xl hover:border-white/40 transition-all duration-300">
-            {children}
+          <div className="rounded-3xl border-2 border-white/40 bg-gradient-to-br from-white/25 via-white/15 to-white/10 backdrop-blur-3xl p-8 shadow-2xl hover:border-white/60 transition-all duration-300 before:absolute before:inset-0 before:rounded-3xl before:bg-gradient-to-t before:from-accent/5 before:to-transparent before:pointer-events-none relative">
+            <div className="relative z-10">
+              {children}
+            </div>
           </div>
         </div>
       </main>
