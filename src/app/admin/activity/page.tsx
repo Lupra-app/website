@@ -1,110 +1,88 @@
-import { getSupabaseServer } from "@/lib/supabase-server";
-
-async function fetchAuditLogs() {
-  try {
-    const supabase = await getSupabaseServer();
-    const { data, error } = await supabase
-      .from("audit_logs")
-      .select("id, admin_email, action, details, created_at")
-      .order("created_at", { ascending: false })
-      .limit(50);
-
-    if (error) {
-      return { data: [], error: error.message };
-    }
-
-    return { data: data || [], error: null };
-  } catch (err) {
-    return { data: [], error: String(err) };
-  }
-}
+import { requireAdmin } from "@/lib/dal";
+import { listAuditLogs } from "@/lib/admin-data";
+import { auditLabel } from "@/lib/audit-log";
+import { formatDateTime } from "@/lib/format";
+import { DEFAULT_PAGE_SIZE, parsePage } from "@/lib/pagination";
+import { Pagination } from "../components/Pagination";
+import { EmptyState, TablePanel, Td, Th, Tr } from "../components/AdminTable";
 
 export const metadata = {
   title: "Aktivite | Admin",
 };
 
-export default async function ActivityPage() {
-  const { data, error } = await fetchAuditLogs();
+/** details JSONB'sinden okunabilir bir özet çıkarır. */
+function describeDetails(details: Record<string, unknown> | null): string | null {
+  if (!details) return null;
 
-  interface AuditLog {
-    id: string;
-    admin_email: string;
-    action: string;
-    details: Record<string, unknown> | null;
-    created_at: string;
-  }
+  const parts: string[] = [];
+  if (typeof details.slug === "string") parts.push(`/${details.slug}`);
+  if (typeof details.target_email === "string") parts.push(details.target_email);
+  if (typeof details.record_count === "number") parts.push(`${details.record_count} kayıt`);
+  if (typeof details.total === "number") parts.push(`${details.total} kayıt`);
 
-  const actionLabels: Record<string, string> = {
-    export_early_access_csv: "Erken Erişim CSV&apos;si İndirildi",
-    view_early_access: "Erken Erişim Listesi Görüntülendi",
-    login: "Giriş Yapıldı",
-  };
+  return parts.length ? parts.join(" · ") : null;
+}
+
+export default async function ActivityPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+}) {
+  await requireAdmin();
+  const sp = await searchParams;
+  const page = parsePage(sp.page);
+
+  const { rows, total, pageCount } = await listAuditLogs({ page, pageSize: DEFAULT_PAGE_SIZE });
 
   return (
     <div>
-      <h1 className="font-heading text-3xl font-semibold text-white">
-        Aktivite Kaydı
-      </h1>
-      <p className="mt-2 text-sm text-muted">
-        Admin panel&apos;deki tüm işlemler kaydediliyor.
-      </p>
+      <div className="mb-8">
+        <h1 className="font-heading text-2xl font-semibold text-white md:text-3xl">Aktivite Kaydı</h1>
+        <p className="mt-2 text-sm text-muted">
+          Panelde yapılan işlemlerin kaydı — kim, ne zaman, ne yaptı.
+        </p>
+      </div>
 
-      {error ? (
-        <div className="mt-8 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
-          Loglar yüklenemedi. Lütfen daha sonra tekrar deneyin.
-        </div>
-      ) : data.length === 0 ? (
-        <div className="mt-8 rounded-lg border border-white/10 bg-white/5 px-8 py-12 text-center">
-          <p className="text-sm text-muted">Henüz hiçbir aktivite kaydedilmedi.</p>
-        </div>
+      {rows.length === 0 ? (
+        <EmptyState
+          title="Henüz hiç aktivite kaydedilmedi."
+          hint="Giriş, çıkış, proje düzenleme ve CSV indirme işlemleri burada listelenir."
+        />
       ) : (
-        <div className="mt-8 overflow-x-auto rounded-lg border border-white/10 bg-white/5">
-          <table className="w-full text-sm">
+        <>
+          <TablePanel>
             <thead>
-              <tr className="border-b border-white/10">
-                <th className="px-6 py-4 text-left font-semibold text-white">
-                  Admin
-                </th>
-                <th className="px-6 py-4 text-left font-semibold text-white">
-                  İşlem
-                </th>
-                <th className="px-6 py-4 text-left font-semibold text-white">
-                  Tarih
-                </th>
+              <tr className="border-b border-white/15 bg-white/5">
+                <Th>Yönetici</Th>
+                <Th>İşlem</Th>
+                <Th>Detay</Th>
+                <Th>Tarih</Th>
               </tr>
             </thead>
             <tbody>
-              {(data as AuditLog[]).map((log, idx) => (
-                <tr
-                  key={log.id}
-                  className={`border-b border-white/5 ${
-                    idx % 2 === 0 ? "bg-white/[0.01]" : ""
-                  } hover:bg-white/10 transition-colors`}
-                >
-                  <td className="px-6 py-4 text-white">{log.admin_email}</td>
-                  <td className="px-6 py-4 text-accent">
-                    {actionLabels[log.action] || log.action}
-                    {log.details && typeof log.details === 'object' && 'record_count' in log.details && (
-                      <span className="ml-2 text-xs text-muted">
-                        ({String((log.details as Record<string, unknown>).record_count)} kayıt)
-                      </span>
-                    )}
-                  </td>
-                  <td className="px-6 py-4 text-muted">
-                    {new Date(log.created_at).toLocaleDateString("tr-TR", {
-                      year: "numeric",
-                      month: "2-digit",
-                      day: "2-digit",
-                      hour: "2-digit",
-                      minute: "2-digit",
-                      second: "2-digit",
-                    })}
-                  </td>
-                </tr>
-              ))}
+              {rows.map((log) => {
+                const detail = describeDetails(log.details);
+                return (
+                  <Tr key={log.id}>
+                    <Td className="font-medium text-white">{log.admin_email}</Td>
+                    <Td className="text-muted">{auditLabel(log.action)}</Td>
+                    <Td className="font-mono text-xs text-muted/70">{detail ?? "—"}</Td>
+                    <Td className="text-xs text-muted">{formatDateTime(log.created_at)}</Td>
+                  </Tr>
+                );
+              })}
             </tbody>
-          </table>
-        </div>
+          </TablePanel>
+
+          <Pagination
+            basePath="/admin/activity"
+            filters={{}}
+            page={page}
+            pageCount={pageCount}
+            total={total}
+            label="işlem"
+          />
+        </>
       )}
     </div>
   );

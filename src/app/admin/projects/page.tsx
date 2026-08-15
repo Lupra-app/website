@@ -1,101 +1,126 @@
 import Link from "next/link";
-import { getSupabaseServer } from "@/lib/supabase-server";
+import { requireAdmin } from "@/lib/dal";
+import { listProjects } from "@/lib/admin-data";
+import { formatDateTime } from "@/lib/format";
+import { DEFAULT_PAGE_SIZE, parsePage, parseQuery, parseStatus } from "@/lib/pagination";
+import { Pagination } from "../components/Pagination";
+import { SearchForm } from "../components/SearchForm";
+import { EmptyState, StatusBadge, TablePanel, Td, Th, Tr } from "../components/AdminTable";
 
 export const metadata = {
   title: "Projeler | Admin",
 };
 
-async function fetchProjects() {
-  try {
-    const supabase = await getSupabaseServer();
-    const { data, error } = await supabase
-      .from("projects")
-      .select("id, slug, title, status, updated_at")
-      .order("updated_at", { ascending: false });
+const STATUS_FILTERS = [
+  { value: undefined, label: "Tümü" },
+  { value: "published", label: "Yayında" },
+  { value: "draft", label: "Taslak" },
+] as const;
 
-    if (error) return { data: [], error: error.message };
-    return { data: data || [], error: null };
-  } catch (err) {
-    return { data: [], error: String(err) };
-  }
-}
+export default async function ProjectsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+}) {
+  await requireAdmin();
+  const sp = await searchParams;
+  const page = parsePage(sp.page);
+  const q = parseQuery(sp.q);
+  const status = parseStatus(sp.status);
 
-export default async function ProjectsPage() {
-  const { data, error } = await fetchProjects();
+  const { rows, total, pageCount } = await listProjects({
+    page,
+    pageSize: DEFAULT_PAGE_SIZE,
+    q: q || undefined,
+    status,
+  });
 
   return (
     <div>
-      <div className="mb-8 flex items-center justify-between">
+      <div className="mb-8 flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="font-heading text-3xl font-semibold text-white">Projeler</h1>
+          <h1 className="font-heading text-2xl font-semibold text-white md:text-3xl">Projeler</h1>
           <p className="mt-2 text-sm text-muted">
             lupra.app/&lt;slug&gt; altında yayınlanan proje sayfaları.
           </p>
         </div>
         <Link
           href="/admin/projects/new"
-          className="flex items-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90"
+          className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90"
         >
           + Yeni Proje
         </Link>
       </div>
 
-      {error ? (
-        <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
-          Projeler yüklenemedi: {error}
-        </div>
-      ) : data.length === 0 ? (
-        <div className="rounded-2xl border border-white/10 bg-white/5 px-8 py-12 text-center">
-          <p className="text-sm text-muted">
-            Henüz proje yok. İlkini oluşturmak için &quot;Yeni Proje&quot;ye tıkla.
-          </p>
-        </div>
+      <SearchForm
+        action="/admin/projects"
+        defaultValue={q}
+        placeholder="Başlıkta ara…"
+        hidden={{ status }}
+      />
+
+      <div className="mb-6 flex flex-wrap gap-2">
+        {STATUS_FILTERS.map((filter) => {
+          const active = status === filter.value;
+          const params = new URLSearchParams();
+          if (q) params.set("q", q);
+          if (filter.value) params.set("status", filter.value);
+          const href = params.toString() ? `/admin/projects?${params}` : "/admin/projects";
+
+          return (
+            <Link
+              key={filter.label}
+              href={href}
+              aria-current={active ? "true" : undefined}
+              className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
+                active
+                  ? "border-accent/40 bg-accent/15 text-white"
+                  : "border-white/10 bg-white/5 text-muted hover:text-white"
+              }`}
+            >
+              {filter.label}
+            </Link>
+          );
+        })}
+      </div>
+
+      {rows.length === 0 ? (
+        <EmptyState
+          title={q || status ? "Bu filtreye uyan proje yok." : "Henüz proje yok."}
+          hint={
+            q || status
+              ? "Filtreyi değiştir veya temizle."
+              : 'İlkini oluşturmak için "Yeni Proje"ye tıkla.'
+          }
+        />
       ) : (
-        <div className="overflow-x-auto rounded-2xl border border-white/10 bg-white/5">
-          <table className="w-full text-left text-sm">
+        <>
+          <TablePanel>
             <thead>
-              <tr className="border-b border-white/10 bg-white/5">
-                <th className="px-6 py-4 font-semibold text-muted">Başlık</th>
-                <th className="px-6 py-4 font-semibold text-muted">Slug</th>
-                <th className="px-6 py-4 font-semibold text-muted">Durum</th>
-                <th className="px-6 py-4 font-semibold text-muted">Güncelleme</th>
-                <th className="px-6 py-4" />
+              <tr className="border-b border-white/15 bg-white/5">
+                <Th>Başlık</Th>
+                <Th>Slug</Th>
+                <Th>Durum</Th>
+                <Th>Güncelleme</Th>
+                <Th className="text-right">İşlem</Th>
               </tr>
             </thead>
             <tbody>
-              {data.map((project) => (
-                <tr
-                  key={project.id}
-                  className="border-b border-white/5 transition-colors hover:bg-white/10"
-                >
-                  <td className="px-6 py-4 font-medium text-white">{project.title}</td>
-                  <td className="px-6 py-4 font-mono text-xs text-muted">/{project.slug}</td>
-                  <td className="px-6 py-4">
-                    {project.status === "published" ? (
-                      <span className="rounded-full border border-emerald-400/30 bg-emerald-500/10 px-2.5 py-1 text-xs font-medium text-emerald-300">
-                        Yayında
-                      </span>
-                    ) : (
-                      <span className="rounded-full border border-white/15 bg-white/5 px-2.5 py-1 text-xs font-medium text-muted">
-                        Taslak
-                      </span>
-                    )}
-                  </td>
-                  <td className="px-6 py-4 text-xs text-muted">
-                    {new Date(project.updated_at).toLocaleDateString("tr-TR", {
-                      day: "numeric",
-                      month: "short",
-                      year: "numeric",
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
-                  </td>
-                  <td className="px-6 py-4 text-right">
+              {rows.map((project) => (
+                <Tr key={project.id}>
+                  <Td className="font-medium text-white">{project.title}</Td>
+                  <Td className="font-mono text-xs text-muted">/{project.slug}</Td>
+                  <Td>
+                    <StatusBadge status={project.status} />
+                  </Td>
+                  <Td className="text-xs text-muted">{formatDateTime(project.updated_at)}</Td>
+                  <Td className="text-right">
                     <div className="flex items-center justify-end gap-3">
                       {project.status === "published" && (
                         <a
                           href={`/${project.slug}`}
                           target="_blank"
+                          rel="noreferrer"
                           className="text-xs text-muted transition-colors hover:text-white"
                         >
                           Görüntüle ↗
@@ -108,12 +133,21 @@ export default async function ProjectsPage() {
                         Düzenle
                       </Link>
                     </div>
-                  </td>
-                </tr>
+                  </Td>
+                </Tr>
               ))}
             </tbody>
-          </table>
-        </div>
+          </TablePanel>
+
+          <Pagination
+            basePath="/admin/projects"
+            filters={{ q: q || undefined, status }}
+            page={page}
+            pageCount={pageCount}
+            total={total}
+            label="proje"
+          />
+        </>
       )}
     </div>
   );

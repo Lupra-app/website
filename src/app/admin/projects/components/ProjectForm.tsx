@@ -1,17 +1,17 @@
-import Link from "next/link";
-import { createProject, updateProject } from "../actions";
+"use client";
 
-// Server action redirect'leri hata durumunda ?error=<kod> ile geri döner;
-// form yeniden dolmaz (MVP), ama tarayıcı taraflı required/pattern
-// attribute'ları geçersiz girdilerin çoğunu submit'ten önce yakalar.
+import { useActionState } from "react";
+import Link from "next/link";
+import { saveProject, EMPTY_PROJECT_STATE } from "../actions";
+
 const ERROR_MESSAGES: Record<string, string> = {
   invalid_title: "Başlık boş olamaz (en fazla 140 karakter).",
-  invalid_slug:
-    "Slug yalnızca küçük harf, rakam ve tire içerebilir (ör. whatsapp-agent).",
+  invalid_slug: "Slug yalnızca küçük harf, rakam ve tire içerebilir (ör. whatsapp-agent).",
   reserved_slug: "Bu slug sistem tarafından kullanılıyor, başka bir tane seç.",
   slug_taken: "Bu slug'a sahip bir proje zaten var.",
   invalid_summary: "Özet en fazla 300 karakter olabilir.",
   content_too_long: "İçerik çok uzun (100.000 karakter sınırı).",
+  not_found: "Bu proje bulunamadı — başka bir sekmede silinmiş olabilir.",
   server_error: "Sunucu hatası — kayıt yapılamadı, tekrar dene.",
 };
 
@@ -24,21 +24,22 @@ type Project = {
   status: string;
 };
 
-export function ProjectForm({
-  project,
-  error,
-}: {
-  project?: Project;
-  error?: string;
-}) {
+export function ProjectForm({ project }: { project?: Project }) {
+  const [state, formAction, pending] = useActionState(saveProject, EMPTY_PROJECT_STATE);
   const isEdit = Boolean(project);
-  const errorMessage = error ? (ERROR_MESSAGES[error] ?? ERROR_MESSAGES.server_error) : null;
+  const message = state.error ? (ERROR_MESSAGES[state.error] ?? ERROR_MESSAGES.server_error) : null;
 
+  // NOT: input'lar kasıtlı olarak uncontrolled (defaultValue) ve forma değişen
+  // bir key prop'u verilmiyor. Hata durumunda bileşen remount olmadığı için
+  // kullanıcının yazdıkları DOM'da olduğu gibi kalır.
   return (
-    <form action={isEdit ? updateProject : createProject} className="space-y-6">
-      {errorMessage && (
-        <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
-          {errorMessage}
+    <form action={formAction} className="space-y-6">
+      {message && (
+        <div
+          role="alert"
+          className="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300"
+        >
+          {message}
         </div>
       )}
 
@@ -94,12 +95,14 @@ export function ProjectForm({
           name="content"
           rows={16}
           defaultValue={project?.content ?? ""}
-          placeholder={"## Sorun\n\nEmlak ofislerine WhatsApp'tan gelen talepler kayboluyor...\n\n## Çözüm\n\n- Talep yakalama\n- Otomatik yanıt"}
+          placeholder={
+            "## Sorun\n\nEmlak ofislerine WhatsApp'tan gelen talepler kayboluyor...\n\n## Çözüm\n\n- Talep yakalama\n- Otomatik yanıt"
+          }
           className="w-full resize-y rounded-lg border border-white/10 bg-white/5 px-4 py-3 font-mono text-sm leading-relaxed text-white placeholder-muted/50 transition-colors focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
         />
       </label>
 
-      <div className="flex items-center justify-between gap-4">
+      <div className="flex flex-wrap items-center justify-between gap-4">
         <label className="flex items-center gap-3">
           <span className="text-sm font-medium text-muted">Durum</span>
           <select
@@ -121,9 +124,11 @@ export function ProjectForm({
           </Link>
           <button
             type="submit"
-            className="rounded-lg bg-accent px-5 py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90"
+            disabled={pending}
+            aria-busy={pending}
+            className="rounded-lg bg-accent px-5 py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {isEdit ? "Kaydet" : "Oluştur"}
+            {pending ? "Kaydediliyor…" : isEdit ? "Kaydet" : "Oluştur"}
           </button>
         </div>
       </div>

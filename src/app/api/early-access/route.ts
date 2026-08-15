@@ -1,12 +1,16 @@
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
-
-// Deliberately conservative, not RFC 5322: catches the typos a real signup
-// form sees ("asdf", "a@", trailing spaces) without rejecting valid
-// addresses. The browser's type="email" already blocks the obvious case;
-// this is the check that still runs when JS handles the submit directly.
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+import { isValidEmail, normalizeEmail } from "@/lib/validation";
+import { checkRateLimit, clientIp } from "@/lib/rate-limit";
 
 export async function POST(request: Request) {
+  const limit = checkRateLimit(`early-access:${clientIp(request)}`);
+  if (!limit.ok) {
+    return Response.json(
+      { error: "rate_limited" },
+      { status: 429, headers: { "Retry-After": String(limit.retryAfterSeconds) } }
+    );
+  }
+
   let body: unknown;
   try {
     body = await request.json();
@@ -16,10 +20,10 @@ export async function POST(request: Request) {
 
   const email =
     typeof body === "object" && body !== null && "email" in body
-      ? String((body as { email: unknown }).email).trim().toLowerCase()
+      ? normalizeEmail((body as { email: unknown }).email)
       : "";
 
-  if (!EMAIL_RE.test(email)) {
+  if (!isValidEmail(email)) {
     return Response.json({ error: "invalid_email" }, { status: 400 });
   }
 
@@ -30,7 +34,7 @@ export async function POST(request: Request) {
     // Unique violation (already signed up) is not a failure from the
     // visitor's point of view — they're on the list either way.
     if (error && error.code !== "23505") {
-      console.error("early_access insert failed:", error);
+      console.error("early_access insert failed:", error.code, error.message);
       return Response.json({ error: "server_error" }, { status: 500 });
     }
   } catch (err) {
