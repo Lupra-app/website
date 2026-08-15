@@ -28,93 +28,74 @@ export default async function AdminLayout({
   }
 
   return (
-    <div className="relative min-h-screen bg-gradient-to-br from-bg via-bg to-bg-raised overflow-hidden">
-      {/* Base Background */}
-      <div className="fixed inset-0 bg-black/40" style={{ zIndex: -50 }} />
-
-      {/* 3D Animated Background Logo */}
-      <div
-        className="fixed opacity-15 pointer-events-none"
-        style={{
-          zIndex: -40,
-          top: '50%',
-          right: '50%',
-          transform: 'translate(25%, -50%)',
-          width: '1000px',
-          height: '1000px',
-        }}
-      >
-        <Logo3D size={1000} />
+    <div className="relative isolate min-h-screen overflow-hidden bg-bg text-white">
+      {/* Background: gradient + rotating 3D logo. `isolate` on the root keeps
+          this -z-10 layer above the root background instead of behind it. */}
+      <div className="fixed inset-0 -z-10 pointer-events-none" aria-hidden="true">
+        <div className="absolute inset-0 bg-gradient-to-br from-bg via-bg to-bg-raised" />
+        <div
+          className="absolute inset-0"
+          style={{
+            background:
+              'radial-gradient(circle at 30% 20%, rgba(79, 70, 229, 0.14) 0%, transparent 55%)',
+          }}
+        />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 opacity-50">
+          <Logo3D size={900} />
+        </div>
+        {/* Edge vignette for depth — keeps the logo visible in the center */}
+        <div
+          className="absolute inset-0"
+          style={{
+            background:
+              'radial-gradient(circle at 50% 50%, transparent 40%, rgba(0, 0, 0, 0.45) 100%)',
+          }}
+        />
       </div>
 
-      {/* Premium Glassmorphism Blur Effect */}
-      <div
-        className="fixed inset-0 pointer-events-none"
-        style={{
-          zIndex: -35,
-          backdropFilter: 'blur(60px) saturate(1.5)',
-          backgroundColor: 'rgba(0, 0, 0, 0.35)',
-        }}
-      />
-
-      {/* Radial gradient overlay for depth */}
-      <div
-        className="fixed inset-0"
-        style={{
-          zIndex: -32,
-          background: 'radial-gradient(circle at 30% 30%, rgba(79, 70, 229, 0.1) 0%, rgba(0, 0, 0, 0.4) 60%)'
-        }}
-      />
-
-      <div className="relative z-10 flex min-h-screen text-white">
-        {/* Sidebar */}
-        <aside className="w-60 border-r border-white/20 bg-white/7 backdrop-blur-2xl sticky top-0 h-screen px-6 py-8 shadow-2xl">
-        <div className="mb-12 flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-accent to-accent-light p-1">
-            <Logo iconOnly size={20} />
-          </div>
-          <span className="font-heading text-lg font-semibold bg-gradient-to-r from-accent to-accent-light bg-clip-text text-transparent">
-            Lupra
-          </span>
-        </div>
-
-        <nav className="space-y-2">
-          <NavLink href="/admin" label="Kontrol Paneli" icon="📊" />
-          <NavLink href="/admin/early-access" label="Erken Erişim" icon="📧" />
-          <NavLink href="/admin/activity" label="Aktivite" icon="📜" />
-        </nav>
-
-        <div className="absolute bottom-8 left-6 right-6">
-          <div className="rounded-2xl border border-white/20 bg-white/10 backdrop-blur-xl px-4 py-3 text-xs hover:border-white/40 transition-all shadow-lg hover:shadow-xl">
-            <p className="text-muted/80 text-xs truncate font-medium">{user.email}</p>
-            <form action="/api/auth/logout" method="POST" className="mt-3">
-              <button
-                type="submit"
-                className="text-accent hover:text-accent-light transition-colors text-xs font-semibold"
-              >
-                → Çıkış yap
-              </button>
-            </form>
-          </div>
-        </div>
-      </aside>
-
-      {/* Main */}
-      <main className="flex-1 overflow-y-auto">
-        <div className="p-8 max-w-7xl mx-auto">
-          <div className="rounded-3xl border border-white/30 bg-white/12 backdrop-blur-2xl p-8 shadow-2xl hover:border-white/50 transition-all duration-300 relative overflow-hidden group">
-            {/* Glow effect on hover */}
-            <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300" style={{ zIndex: 0 }}>
-              <div className="absolute top-0 right-0 w-96 h-96 bg-accent/10 rounded-full blur-3xl" />
+      <div className="flex min-h-screen">
+        {/* Sidebar (glass) */}
+        <aside className="sticky top-0 h-screen w-60 shrink-0 border-r border-white/10 bg-white/6 px-6 py-8 shadow-2xl backdrop-blur-2xl">
+          <div className="mb-12 flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-accent to-accent-light p-1">
+              <Logo iconOnly size={20} />
             </div>
-            <div className="relative z-10">
+            <span className="font-heading text-lg font-semibold bg-gradient-to-r from-accent to-accent-light bg-clip-text text-transparent">
+              Lupra
+            </span>
+          </div>
+
+          <nav className="space-y-2">
+            <NavLink href="/admin" label="Kontrol Paneli" icon="📊" />
+            <NavLink href="/admin/early-access" label="Erken Erişim" icon="📧" />
+            <NavLink href="/admin/activity" label="Aktivite" icon="📜" />
+          </nav>
+
+          <div className="absolute bottom-8 left-6 right-6">
+            <div className="rounded-2xl border border-white/10 bg-white/8 px-4 py-3 text-xs backdrop-blur-xl transition-all hover:border-white/25">
+              <p className="text-muted/80 text-xs truncate font-medium">{user.email}</p>
+              <form action="/api/auth/logout" method="POST" className="mt-3">
+                <button
+                  type="submit"
+                  className="text-accent-light hover:text-white transition-colors text-xs font-semibold"
+                >
+                  → Çıkış yap
+                </button>
+              </form>
+            </div>
+          </div>
+        </aside>
+
+        {/* Main content (glass card over the rotating logo) */}
+        <main className="flex-1 overflow-y-auto">
+          <div className="mx-auto max-w-7xl p-8">
+            <div className="rounded-3xl border border-white/10 bg-white/7 p-8 shadow-2xl backdrop-blur-2xl transition-colors duration-300 hover:border-white/20">
               {children}
             </div>
           </div>
-        </div>
-      </main>
+        </main>
       </div>
-      </div>
+    </div>
   );
 }
 
