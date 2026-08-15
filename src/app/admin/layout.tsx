@@ -11,7 +11,18 @@ export default async function AdminLayout({
   const supabase = await getSupabaseServer();
   const { data: { user } } = await supabase.auth.getUser();
 
-  if (!user || !(await isAdminAllowed(user.email))) {
+  console.log("[AdminLayout] User:", user?.email || "null");
+
+  if (!user) {
+    console.log("[AdminLayout] No user, redirecting to /login");
+    redirect("/login");
+  }
+
+  const isAllowed = await isAdminAllowed(user.email);
+  console.log("[AdminLayout] isAdminAllowed:", isAllowed, "for", user.email);
+
+  if (!isAllowed) {
+    console.log("[AdminLayout] User not in allowlist, redirecting to /login");
     redirect("/login");
   }
 

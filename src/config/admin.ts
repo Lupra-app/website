@@ -1,35 +1,28 @@
-// NOTE: Allowlist moved to Supabase admin_users table.
-// This file kept for reference/fallback only.
-// See src/lib/admin-auth.ts for database-backed authorization.
+// Admin allowlist check: queries admin_users table with service-role key
+// (bypass RLS since public access is not allowed)
 
-import { createServerClient } from "@supabase/ssr";
-import { cookies } from "next/headers";
+import { createClient } from "@supabase/supabase-js";
 
 export async function isAdminAllowed(email: string | null | undefined): Promise<boolean> {
   if (!email) return false;
 
   try {
-    const cookieStore = await cookies();
-    const supabase = createServerClient(
+    // Use service-role key to bypass RLS (no cookies needed)
+    const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          getAll() {
-            return cookieStore.getAll();
-          },
-        },
-      }
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
 
-    const { data, error } = await supabase
+    const { data } = await supabase
       .from("admin_users")
       .select("id")
       .eq("email", email)
-      .single();
+      .limit(1);
 
-    return !error && !!data;
-  } catch {
+    console.log("[isAdminAllowed] Query result for", email, ":", data);
+    return Array.isArray(data) && data.length > 0;
+  } catch (err) {
+    console.error("[isAdminAllowed] Error checking email:", email, err);
     return false;
   }
 }
