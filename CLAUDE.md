@@ -45,8 +45,45 @@ There is no test suite configured.
 - **`BackgroundRings`** (`src/components/BackgroundRings.tsx`) renders the giant faint
   corner-cropped rings used behind the Hero, with a slow scroll-scrubbed parallax; reuse it rather
   than hand-rolling new decorative rings elsewhere.
-- **Early access form is intentionally stubbed**: `EarlyAccess.tsx` only `console.log`s the
-  submitted email (see the `TODO` there) — there is no `/api/early-access` route yet.
+- **Early access form is live**: `EarlyAccess.tsx` POSTs to `/api/early-access`, which rate-limits
+  by IP and inserts into Supabase. Duplicate emails (`23505`) are treated as success — the visitor
+  is on the list either way.
+
+## Admin panel (`src/app/admin/`)
+
+- **Reads go through the service-role key, not the user's session.** All four tables have RLS
+  enabled with **no policies**, which is deliberate: nothing but the service-role key can touch
+  them. Postgres denies by default and PostgREST reports that denial as an *empty result, not an
+  error* — so reading with the anon client silently returns `[]` and every error state stays
+  quiet. That exact bug left the panel showing zeros for weeks. Never read admin data with
+  `getSupabaseServer()`.
+- **Two files own all authorization and data access:**
+  - `src/lib/dal.ts` — `requireAdmin()` (pages/layouts/server actions, redirects), `requireAdminApi()`
+    (route handlers, returns a 401 `Response` because `redirect()` emits a method-preserving 307),
+    `isAdminEmail()`, `getAdminSession()`. All memoized with React `cache()` so one request costs
+    one `auth.getUser()` round trip.
+  - `src/lib/admin-data.ts` — every admin read query. **Contract: each exported function's first
+    line is `await requireAdmin()`.** Since the database no longer answers "may this user see
+    this row", authorization lives entirely here; do not write raw Supabase queries in admin pages.
+- **Every page, action and route handler re-checks auth itself.** The layout check is not enough:
+  layouts don't re-render on navigation and server actions never pass through them. `requireAdmin()`
+  also reaches `cookies()`, which is what keeps admin routes dynamic — without it Next would try
+  to statically prerender them and freeze empty data into the build.
+- **Errors are thrown, not swallowed.** `admin-data.ts` throws on query failure so `app/admin/error.tsx`
+  can distinguish "no records" from "broken query". Returning `[]` on error is what hid the original bug.
+- **Forms use `useActionState`**, and actions return `{ error }` instead of redirecting on failure —
+  a redirect is a full navigation that wipes uncontrolled inputs (previously destroying up to 100k
+  characters of markdown). Keep inputs uncontrolled (`defaultValue`) and never put a changing `key`
+  on the form, or the remount brings the data loss back. `redirect()` only on success.
+- **Audit log** (`src/lib/audit-log.ts`) must use `getSupabaseAdmin()`. Passing the service-role key
+  to `@supabase/ssr`'s `createServerClient` does *not* work — `_getAccessToken()` prefers the
+  session JWT over the key, so writes go as `authenticated` and RLS rejects them. Action codes live
+  in `AUDIT_ACTIONS`; the type union means a new action without a Turkish label fails to compile.
+- **Bootstrap:** the first admin row must be inserted by hand in the Supabase SQL Editor (see
+  `.env.example`); `/admin/admins` manages everyone after that. Self-removal and last-admin removal
+  are blocked both in the action and by a database trigger.
+- **Dates** always go through `src/lib/format.ts` (`Europe/Istanbul`). Bare `toLocaleDateString`
+  uses the server's zone — correct locally, three hours off on Vercel.
 - Copy is Turkish throughout; keep new user-facing strings consistent with that (see the existing
   section components for tone/terminology).
 

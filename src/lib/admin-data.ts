@@ -54,6 +54,13 @@ function escapeLike(value: string): string {
 }
 
 function fail(what: string, error: { code?: string; message: string }): never {
+  // PGRST205 = tablo PostgREST şema önbelleğinde yok, yani migration hiç
+  // çalıştırılmamış. Ham PostgREST mesajı yerine ne yapılacağını söyleyelim.
+  if (error.code === "PGRST205") {
+    throw new Error(
+      `${what} okunamadı: ilgili tablo Supabase'de yok. supabase/schema.sql dosyasını Supabase → SQL Editor'da çalıştır.`
+    );
+  }
   throw new Error(`${what} okunamadı (${error.code ?? "?"}): ${error.message}`);
 }
 
@@ -61,10 +68,14 @@ export async function getDashboardStats() {
   await requireAdmin();
   const supabase = getSupabaseAdmin();
 
+  // DİKKAT: projects sorgusunda `head: true` KULLANMA. PostgREST bir HEAD
+  // isteğinde gövde döndüremediği için tablo eksik olsa bile hata değil,
+  // sessizce `{ error: null, count: null }` döner — yani eksik tablo "0 proje"
+  // gibi görünürdü. Gerçek bir satır seçmek hatayı görünür kılıyor.
   const [earlyAccess, projects, published, admins, audit, lastLog] = await Promise.all([
     supabase.from("early_access").select("*", { count: "exact", head: true }),
-    supabase.from("projects").select("*", { count: "exact", head: true }),
-    supabase.from("projects").select("*", { count: "exact", head: true }).eq("status", "published"),
+    supabase.from("projects").select("id", { count: "exact" }).limit(1),
+    supabase.from("projects").select("id", { count: "exact" }).eq("status", "published").limit(1),
     supabase.from("admin_users").select("*", { count: "exact", head: true }),
     supabase.from("audit_logs").select("*", { count: "exact", head: true }),
     supabase.from("audit_logs").select("created_at").order("created_at", { ascending: false }).limit(1),
@@ -73,8 +84,9 @@ export async function getDashboardStats() {
   if (earlyAccess.error) fail("Erken erişim sayısı", earlyAccess.error);
   if (admins.error) fail("Yönetici sayısı", admins.error);
   if (audit.error) fail("Aktivite sayısı", audit.error);
-  // projects tablosu henüz oluşturulmamış olabilir (PGRST205 = şemada yok).
-  // Panelin geri kalanı bu yüzden çökmesin; kart bunun yerine uyarı gösterir.
+  // projects tablosu henüz oluşturulmamış olabilir. Panelin geri kalanı bu
+  // yüzden çökmesin; kontrol paneli bunun yerine "SQL'i çalıştır" uyarısı
+  // gösterir (diğer sayfalar zaten anlaşılır bir hata veriyor).
   const projectsTableMissing = projects.error?.code === "PGRST205";
   if (projects.error && !projectsTableMissing) fail("Proje sayısı", projects.error);
 
