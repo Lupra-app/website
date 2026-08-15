@@ -1,34 +1,63 @@
-import { createServerClient } from "@supabase/ssr";
-import { cookies } from "next/headers";
+import "server-only";
+import { getSupabaseAdmin } from "@/lib/supabase-admin";
+
+/**
+ * Admin panel aktivite kaydı.
+ *
+ * Eskiden bu dosya service-role anahtarını @supabase/ssr'ın createServerClient'ına
+ * cookie adapter'ıyla birlikte veriyordu; bu kombinasyon çalışmaz, çünkü
+ * SupabaseClient._getAccessToken() oturum JWT'sini anahtarın önüne geçirir.
+ * Yani istek `authenticated` rolüyle gidiyor, RLS reddediyor ve insert'in
+ * dönüş {error}'ü okunmadığı için hiç kimse fark etmiyordu — tablo aylarca
+ * boş kaldı. Artık gerçek service-role client kullanılıyor ve hata loglanıyor.
+ */
+
+/**
+ * Eylem kodları ve Türkçe etiketleri. Tek kaynak: aktivite sayfası bu
+ * haritadan okuyor, dolayısıyla yeni bir eylem eklenip etiketi unutulursa
+ * TypeScript derlemede yakalar (eskiden ham İngilizce kod ekrana basılıyordu).
+ */
+export const AUDIT_ACTIONS = {
+  login: "Giriş yapıldı",
+  logout: "Çıkış yapıldı",
+  export_early_access_csv: "Erken erişim CSV'si indirildi",
+  view_early_access: "Erken erişim listesi görüntülendi",
+  create_project: "Proje oluşturuldu",
+  update_project: "Proje güncellendi",
+  delete_project: "Proje silindi",
+  add_admin: "Yönetici eklendi",
+  remove_admin: "Yönetici çıkarıldı",
+} as const;
+
+export type AuditAction = keyof typeof AUDIT_ACTIONS;
+
+export function auditLabel(action: string): string {
+  return AUDIT_ACTIONS[action as AuditAction] ?? action;
+}
 
 interface LogEntry {
   admin_email: string;
-  action: string;
+  action: AuditAction;
   details?: Record<string, unknown>;
 }
 
+/**
+ * Kayıt başarısız olursa çağıran akış BOZULMAZ — loglama, kullanıcının
+ * yapmaya çalıştığı işi engellememeli. Ama sessizce de yutulmaz: hem
+ * Supabase'in döndürdüğü {error} hem de beklenmeyen exception loglanır.
+ */
 export async function logAdminAction(entry: LogEntry): Promise<void> {
   try {
-    const cookieStore = await cookies();
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!,
-      {
-        cookies: {
-          getAll() {
-            return cookieStore.getAll();
-          },
-        },
-      }
-    );
-
-    await supabase.from("audit_logs").insert({
+    const { error } = await getSupabaseAdmin().from("audit_logs").insert({
       admin_email: entry.admin_email,
       action: entry.action,
-      details: entry.details || null,
+      details: entry.details ?? null,
     });
+
+    if (error) {
+      console.error("[audit] kayıt yazılamadı:", error.code, error.message);
+    }
   } catch (err) {
-    // Silently fail — logging shouldn't break the app
-    console.error("Audit log error:", err);
+    console.error("[audit] beklenmeyen hata:", err);
   }
 }

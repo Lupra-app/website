@@ -24,6 +24,38 @@ create table if not exists admin_users (
 -- RLS açık, yine sadece service-role erişebilir
 alter table admin_users enable row level security;
 
+-- E-posta harf duyarlılığı tuzağını DB seviyesinde kapat: Google her zaman
+-- küçük harfli adres döndürür, ama tabloya "Umut@gmail.com" yazılırsa
+-- allowlist sessizce boşa düşer ve kimse panele giremez. Uygulama da
+-- lower() ile sorgular (src/lib/dal.ts), bu index onu garantiye alır.
+create unique index if not exists idx_admin_users_email_lower
+  on admin_users (lower(email));
+
+-- Son yöneticinin silinmesini engelle. Uygulamada da kontrol var
+-- (src/app/admin/admins/actions.ts) ama "say, sonra sil" arasında yarış
+-- koşulu var: iki yönetici aynı anda birbirini silerse ikisi de sayımı 2
+-- görür. Tek gerçek garanti bu trigger.
+create or replace function prevent_last_admin_delete()
+returns trigger language plpgsql as $$
+begin
+  if (select count(*) from admin_users) <= 1 then
+    raise exception 'last_admin' using errcode = 'P0001';
+  end if;
+  return old;
+end $$;
+
+drop trigger if exists admin_users_prevent_last_delete on admin_users;
+create trigger admin_users_prevent_last_delete
+  before delete on admin_users
+  for each row execute function prevent_last_admin_delete();
+
+-- BOOTSTRAP: ilk yöneticiyi buradan ekle. Panelde yönetici ekleme ekranı
+-- var (/admin/admins) ama oraya girebilmek için zaten yönetici olman
+-- gerekiyor — yumurta-tavuk. İlk satır SQL Editor'dan girilir:
+--
+--   insert into admin_users (email) values (lower('senin@gmail.com'))
+--   on conflict (email) do nothing;
+
 -- Audit log: admin panel aktiviteleri (kim, ne zaman, ne yaptı)
 create table if not exists audit_logs (
   id uuid primary key default gen_random_uuid(),
