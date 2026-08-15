@@ -169,45 +169,57 @@ export function Scene3DProvider({ children }: { children: ReactNode }) {
           // from one beat to the next. A heavier scrub lag turns that snap
           // into a catch-up glide without decoupling it from scroll position.
           scrub: 2.2,
+          // Every horizontal target below is a function of window width
+          // (vwToX). Without this they would be baked in at build time and a
+          // window resize would leave the mark travelling to positions
+          // measured for the old viewport.
+          invalidateOnRefresh: true,
         },
       });
 
-      // Beat 1 — get clear of the hero headline, fast.
+      // Beat 1 — get clear of the hero headline.
       //
       // The mark is fixed to the viewport and the headline sits just below it,
       // so as the page scrolls the headline *always* travels up through the
       // mark's horizontal band. No vertical choreography can avoid that; only
-      // horizontal separation can. Hence the front-loaded `power3.out` and the
-      // short duration — most of the leftward move is spent in the first
-      // handful of scrolled pixels, before the headline arrives. Lifting `y`
-      // at the same time buys a little extra room by letting the headline pass
-      // underneath sooner. (A `sine.inOut` here — slow at both ends — is
-      // exactly what made the mark wade straight down through the headline.)
+      // horizontal separation can — so this beat still leads with the sideways
+      // move (`power2.out` front-loads it) and lifts `y` at the same time to
+      // let the headline pass underneath sooner. A `sine.inOut` here — slow at
+      // both ends — is what once made the mark wade straight down through the
+      // headline, so the ease must stay out-biased.
+      //
+      // Distance and pace are deliberately gentler than they first were:
+      // -0.72 of the half-width over 0.8 units read as the mark being flung
+      // off-screen the instant you touched the wheel. Roughly two thirds of
+      // the travel, spread over twice the scroll distance, clears the headline
+      // just as well without the lurch.
       tl.to(
         t,
         {
-          x: vwToX(-0.72),
+          x: () => vwToX(-0.46),
           y: 0.86,
           scale: vhToScale(38),
-          duration: 0.8,
-          ease: "power3.out",
+          duration: 1.6,
+          ease: "power2.out",
         },
         0
       )
         // Beat 2 — swing back in and descend into the "Nasıl çalışır" column.
         // Shrunk from the hero's scale here on: the reserved left column sits
         // directly under the section heading, so the ring's descent always
-        // crosses the heading's row at some point on the way down — small is
-        // what keeps that crossing brief instead of stamping over the words.
-        .to(t, { x: vwToX(-0.42), y: -0.05, scale: vhToScale(14), duration: 1.5, ease: "sine.inOut" }, ">-0.15")
+        // crosses the heading's row at some point on the way down — smaller
+        // keeps that crossing brief instead of stamping over the words. But
+        // 14vh made the mark almost vanish mid-page; ~21vh still threads the
+        // column while staying a legible object.
+        .to(t, { x: () => vwToX(-0.44), y: -0.05, scale: vhToScale(21), duration: 1.5, ease: "sine.inOut" }, ">-0.15")
         // Beat 3 — travel down the left column alongside the numbered steps.
         // Bounded (not cumulative) so it can never drift out of the viewport.
-        // Small and off to the column's outer edge (x nudged further left of
-        // beat 2) rather than dead-centre: the last step's heading sits at
-        // this same height, in the column next door, and even at this scale
-        // dead-centre was still close enough to clip its first letter as the
-        // gap in the ring's sweep rotated past that edge mid-scroll.
-        .to(t, { x: vwToX(-0.5), y: -1.15, scale: vhToScale(13), duration: 1.6, ease: "sine.inOut" }, ">-0.3")
+        // Nudged further left than beat 2 rather than dead-centre: the last
+        // step's heading sits at this same height in the column next door, and
+        // dead-centre was close enough to clip its first letter as the gap in
+        // the ring's sweep rotated past that edge mid-scroll. The extra offset
+        // also buys back the room the larger scale takes up.
+        .to(t, { x: () => vwToX(-0.54), y: -1.15, scale: vhToScale(20), duration: 1.6, ease: "sine.inOut" }, ">-0.3")
         // Beat 4 — sweep past the feature cards. Unlike "Nasıl çalışır" this
         // section has no reserved lane, and the 2-up card grid spans almost
         // the full content width, so there's no horizontal gap to thread
@@ -217,8 +229,8 @@ export function Scene3DProvider({ children }: { children: ReactNode }) {
         // travel once already above the cards. A single diagonal tween from
         // the steps column to the right edge — tried first — dragged the
         // ring straight across both card titles on the way.
-        .to(t, { y: -0.3, scale: vhToScale(15), duration: 1.0, ease: "sine.out" }, ">-0.05")
-        .to(t, { x: vwToX(0.78), duration: 1.8, ease: "sine.inOut" }, ">-0.05")
+        .to(t, { y: -0.3, scale: vhToScale(22), duration: 1.0, ease: "sine.out" }, ">-0.05")
+        .to(t, { x: () => vwToX(0.72), duration: 1.8, ease: "sine.inOut" }, ">-0.05")
         // Beat 5 — return to centre, then scale up and settle over the signup
         // card. Also split, for the same reason as beat 4: growing to full
         // size *while* still sliding back across the feature cards briefly
