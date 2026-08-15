@@ -83,10 +83,18 @@ interface Logo3DProps {
 
 export function Logo3D({ className = "", size = 800 }: Logo3DProps) {
   return (
-    <div className={`relative ${className}`} style={{ width: size, height: size }}>
+    <div
+      className={`relative overflow-hidden ${className}`}
+      style={{ width: size, height: size }}
+    >
       <Canvas
         camera={{ position: [0, 0, 6], fov: 50 }}
-        style={{ background: "transparent" }}
+        style={{
+          background: "transparent",
+          display: "block",
+          width: "100%",
+          height: "100%",
+        }}
         gl={{ alpha: true, antialias: true, powerPreference: "high-performance" }}
         dpr={[1, 2]}
       >

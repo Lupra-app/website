@@ -33,8 +33,18 @@ export default async function AdminLayout({
       <div className="fixed inset-0 bg-black/40" style={{ zIndex: -50 }} />
 
       {/* 3D Animated Background Logo */}
-      <div className="fixed -top-48 -right-64 opacity-20 pointer-events-none" style={{ zIndex: -40 }}>
-        <Logo3D size={1200} />
+      <div
+        className="fixed opacity-15 pointer-events-none"
+        style={{
+          zIndex: -40,
+          top: '50%',
+          right: '50%',
+          transform: 'translate(25%, -50%)',
+          width: '1000px',
+          height: '1000px',
+        }}
+      >
+        <Logo3D size={1000} />
       </div>
 
       {/* Premium Glassmorphism Blur Effect */}
