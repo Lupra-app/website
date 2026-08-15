@@ -30,21 +30,35 @@ export default async function AdminLayout({
   return (
     <div className="relative min-h-screen bg-gradient-to-br from-bg via-bg to-bg-raised overflow-hidden">
       {/* Base Background */}
-      <div className="fixed inset-0 -z-50 bg-black/30" />
+      <div className="fixed inset-0 bg-black/40" style={{ zIndex: -50 }} />
 
-      {/* 3D Background Logo - Very Small, Corner */}
-      <div className="fixed bottom-0 right-0 -z-40 opacity-3 pointer-events-none overflow-hidden">
-        <div className="w-96 h-96 blur-3xl">
-          <Logo3D />
-        </div>
+      {/* 3D Animated Background Logo */}
+      <div className="fixed -top-48 -right-64 opacity-20 pointer-events-none" style={{ zIndex: -40 }}>
+        <Logo3D size={1200} />
       </div>
 
-      {/* Very Strong Glassmorphism Blur Effect */}
-      <div className="fixed inset-0 -z-30 backdrop-blur-3xl bg-gradient-to-b from-black/40 via-black/20 to-black/40" />
+      {/* Premium Glassmorphism Blur Effect */}
+      <div
+        className="fixed inset-0 pointer-events-none"
+        style={{
+          zIndex: -35,
+          backdropFilter: 'blur(60px) saturate(1.5)',
+          backgroundColor: 'rgba(0, 0, 0, 0.35)',
+        }}
+      />
+
+      {/* Radial gradient overlay for depth */}
+      <div
+        className="fixed inset-0"
+        style={{
+          zIndex: -32,
+          background: 'radial-gradient(circle at 30% 30%, rgba(79, 70, 229, 0.1) 0%, rgba(0, 0, 0, 0.4) 60%)'
+        }}
+      />
 
       <div className="relative z-10 flex min-h-screen text-white">
         {/* Sidebar */}
-        <aside className="w-60 border-r border-white/30 bg-white/8 backdrop-blur-xl sticky top-0 h-screen px-6 py-8 shadow-2xl">
+        <aside className="w-60 border-r border-white/20 bg-white/7 backdrop-blur-2xl sticky top-0 h-screen px-6 py-8 shadow-2xl">
         <div className="mb-12 flex items-center gap-3">
           <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-accent to-accent-light p-1">
             <Logo iconOnly size={20} />
@@ -61,8 +75,8 @@ export default async function AdminLayout({
         </nav>
 
         <div className="absolute bottom-8 left-6 right-6">
-          <div className="rounded-2xl border border-white/30 bg-gradient-to-br from-white/20 to-white/10 backdrop-blur-xl px-4 py-3 text-xs hover:from-white/25 hover:to-white/15 hover:border-white/40 transition-all shadow-lg">
-            <p className="text-muted/90 text-xs truncate font-medium">{user.email}</p>
+          <div className="rounded-2xl border border-white/20 bg-white/10 backdrop-blur-xl px-4 py-3 text-xs hover:border-white/40 transition-all shadow-lg hover:shadow-xl">
+            <p className="text-muted/80 text-xs truncate font-medium">{user.email}</p>
             <form action="/api/auth/logout" method="POST" className="mt-3">
               <button
                 type="submit"
@@ -78,7 +92,11 @@ export default async function AdminLayout({
       {/* Main */}
       <main className="flex-1 overflow-y-auto">
         <div className="p-8 max-w-7xl mx-auto">
-          <div className="rounded-3xl border-2 border-white/40 bg-gradient-to-br from-white/25 via-white/15 to-white/10 backdrop-blur-3xl p-8 shadow-2xl hover:border-white/60 transition-all duration-300 before:absolute before:inset-0 before:rounded-3xl before:bg-gradient-to-t before:from-accent/5 before:to-transparent before:pointer-events-none relative">
+          <div className="rounded-3xl border border-white/30 bg-white/12 backdrop-blur-2xl p-8 shadow-2xl hover:border-white/50 transition-all duration-300 relative overflow-hidden group">
+            {/* Glow effect on hover */}
+            <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300" style={{ zIndex: 0 }}>
+              <div className="absolute top-0 right-0 w-96 h-96 bg-accent/10 rounded-full blur-3xl" />
+            </div>
             <div className="relative z-10">
               {children}
             </div>
@@ -102,7 +120,7 @@ function NavLink({
   return (
     <a
       href={href}
-      className="flex items-center gap-3 rounded-lg px-4 py-2.5 text-sm text-muted transition-all hover:bg-white/15 hover:text-white border border-transparent hover:border-white/20 backdrop-blur-sm"
+      className="flex items-center gap-3 rounded-lg px-4 py-2.5 text-sm text-muted transition-all hover:bg-white/12 hover:text-white border border-white/10 hover:border-white/25 backdrop-blur-sm hover:shadow-lg"
     >
       {icon && <span className="text-base">{icon}</span>}
       {label}

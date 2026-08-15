@@ -2,7 +2,6 @@
 
 import { useRef, useEffect } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
-import { OrbitControls } from "@react-three/drei";
 import * as THREE from "three";
 import gsap from "gsap";
 
@@ -14,58 +13,63 @@ function LogoMesh() {
   useEffect(() => {
     if (!groupRef.current) return;
 
-    // Continuous rotation with GSAP
+    // Smooth continuous 3D rotation
     gsap.to(groupRef.current.rotation, {
-      z: Math.PI * 2,
-      duration: 8,
+      x: Math.PI * 2,
+      y: Math.PI * 2,
+      z: Math.PI * 0.5,
+      duration: 15,
       repeat: -1,
       ease: "none",
     });
   }, []);
 
-  // Optional: slight orbit with mouse
-  useFrame(({ mouse }) => {
-    if (groupRef.current) {
-      groupRef.current.rotation.x = mouse.y * 0.1;
-      groupRef.current.rotation.y = mouse.x * 0.1;
-    }
-  });
-
   return (
     <group ref={groupRef}>
-      {/* Ring (Halka) - with gap at top-right (90°-180°) */}
+      {/* Main Ring (Halka) - with gap at top-right */}
       <mesh ref={ringRef} position={[0, 0, 0]}>
-        <torusGeometry args={[2, 0.15, 32, 256, Math.PI * 1.5, Math.PI * 1.5]} />
+        <torusGeometry args={[2.5, 0.2, 32, 256, Math.PI * 1.5, Math.PI * 1.5]} />
         <meshStandardMaterial
           color="#6366f1"
-          emissive="#6366f1"
-          emissiveIntensity={0.5}
+          emissive="#4f46e5"
+          emissiveIntensity={0.6}
           wireframe={false}
-          metalness={0.3}
-          roughness={0.4}
+          metalness={0.6}
+          roughness={0.2}
         />
       </mesh>
 
-      {/* Dot (Nokta) - at top-right */}
-      <mesh ref={dotRef} position={[Math.sqrt(2), Math.sqrt(2), 0]}>
-        <sphereGeometry args={[0.35, 32, 32]} />
+      {/* Dot (Nokta) - at top-right position */}
+      <mesh ref={dotRef} position={[Math.sqrt(2) * 2.5, Math.sqrt(2) * 2.5, 0]}>
+        <sphereGeometry args={[0.4, 32, 32]} />
         <meshStandardMaterial
           color="#4f46e5"
-          emissive="#4f46e5"
-          emissiveIntensity={0.8}
-          metalness={0.4}
-          roughness={0.3}
+          emissive="#818cf8"
+          emissiveIntensity={1.0}
+          metalness={0.7}
+          roughness={0.15}
         />
       </mesh>
 
-      {/* Subtle glow effect using additional torus */}
+      {/* Glow wireframe ring */}
       <mesh position={[0, 0, 0]}>
-        <torusGeometry args={[2, 0.15, 32, 256, Math.PI * 1.5, Math.PI * 1.5]} />
+        <torusGeometry args={[2.5, 0.2, 32, 256, Math.PI * 1.5, Math.PI * 1.5]} />
         <meshBasicMaterial
           color="#818cf8"
           wireframe={true}
           transparent={true}
-          opacity={0.2}
+          opacity={0.3}
+        />
+      </mesh>
+
+      {/* Extra glow sphere for depth */}
+      <mesh position={[0, 0, 0]}>
+        <sphereGeometry args={[3, 16, 16]} />
+        <meshBasicMaterial
+          color="#4f46e5"
+          wireframe={true}
+          transparent={true}
+          opacity={0.1}
         />
       </mesh>
     </group>
@@ -77,24 +81,20 @@ interface Logo3DProps {
   size?: number;
 }
 
-export function Logo3D({ className = "", size = 400 }: Logo3DProps) {
+export function Logo3D({ className = "", size = 800 }: Logo3DProps) {
   return (
     <div className={`relative ${className}`} style={{ width: size, height: size }}>
       <Canvas
-        camera={{ position: [0, 0, 4], fov: 75 }}
+        camera={{ position: [0, 0, 6], fov: 50 }}
         style={{ background: "transparent" }}
-        gl={{ alpha: true, antialias: true }}
+        gl={{ alpha: true, antialias: true, powerPreference: "high-performance" }}
+        dpr={[1, 2]}
       >
-        <ambientLight intensity={0.6} />
-        <pointLight position={[10, 10, 10]} intensity={0.8} />
-        <pointLight position={[-10, -10, 10]} intensity={0.4} />
+        <ambientLight intensity={0.4} />
+        <pointLight position={[15, 15, 15]} intensity={1.0} color="#818cf8" />
+        <pointLight position={[-15, -15, 15]} intensity={0.6} color="#4f46e5" />
+        <pointLight position={[0, 0, 20]} intensity={0.4} />
         <LogoMesh />
-        <OrbitControls
-          autoRotate={false}
-          enableZoom={false}
-          enablePan={false}
-          enableRotate={true}
-        />
       </Canvas>
     </div>
   );
