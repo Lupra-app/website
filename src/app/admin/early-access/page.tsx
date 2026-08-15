@@ -14,7 +14,7 @@ export default function EarlyAccessPage() {
           Erken Erişim Kayıtları
         </h1>
         <p className="mt-2 text-sm text-muted">
-          Lupra'ya erişim talebinde bulunan e-posta adreslerinin listesi.
+          Lupra&apos;ya erişim talebinde bulunan e-posta adreslerinin listesi.
         </p>
       </div>
 
