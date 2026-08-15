@@ -39,3 +39,24 @@ alter table audit_logs enable row level security;
 -- Index: admin_email + created_at için hızlı sorgular
 create index if not exists idx_audit_logs_admin_email_created_at
   on audit_logs(admin_email, created_at desc);
+
+-- Projeler (G5 CMS): lupra.app/[slug] altında yayınlanan proje sayfaları.
+-- İçerik markdown olarak saklanır, admin panelden düzenlenir.
+-- updated_at trigger'la değil, update eden server action tarafından yazılır.
+create table if not exists projects (
+  id uuid primary key default gen_random_uuid(),
+  slug text not null unique,
+  title text not null,
+  summary text, -- kart/SEO açıklaması, opsiyonel
+  content text not null default '', -- markdown gövde
+  status text not null default 'draft' check (status in ('draft', 'published')),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+-- RLS açık, policy yok: diğer tablolar gibi sadece service-role erişir.
+-- Public sayfa da server component içinden service-role ile okur.
+alter table projects enable row level security;
+
+create index if not exists idx_projects_status_updated_at
+  on projects(status, updated_at desc);

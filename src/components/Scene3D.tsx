@@ -355,13 +355,14 @@ function SceneCanvas({ layer, className }: { layer: MarkLayer; className: string
  * draws only what is nearer and sits above it. Together they composite into
  * one solid object with the DOM text threaded through its middle.
  */
-// The scroll-choreographed mark belongs to the landing page; on /admin it has
-// no sections to travel through and its front canvas (z-30) would float over
-// the panel UI, so both layers bail out there. The admin layout renders its
-// own copy of the mark (Logo3D) behind its glass panels instead.
+// The scroll-choreographed mark belongs to the landing page: its timeline
+// targets the landing sections, and on any other route (admin, login, project
+// pages) it would just park in hero pose with the front canvas (z-30) floating
+// over the content. So both layers render only on "/" — the admin layout
+// renders its own copy of the mark (Logo3D) behind its glass panels instead.
 function useMarkHidden() {
   const pathname = usePathname();
-  return pathname?.startsWith("/admin") ?? false;
+  return pathname !== "/";
 }
 
 export function Scene3DBack() {

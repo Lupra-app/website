@@ -37,13 +37,95 @@
     rgb(255 255 255 / 0.06) 40%,
     rgb(255 255 255 / 0.12) 100%
   );
-  backdrop-filter: blur(72px) saturate(2) contrast(1.15) brightness(1.15);
-  -webkit-backdrop-filter: blur(72px) saturate(2) contrast(1.15) brightness(1.15);
+  backdrop-filter: blur(100px) saturate(2) contrast(1.15) brightness(1.15);
+  -webkit-backdrop-filter: blur(100px) saturate(2) contrast(1.15) brightness(1.15);
   box-shadow:
     inset 0 1px 0 0 rgb(255 255 255 / 0.3),
     inset 1px 0 0 0 rgb(255 255 255 / 0.1),
     inset 0 -1px 0 0 rgb(0 0 0 / 0.25),
     0 24px 60px -16px rgb(0 0 0 / 0.65);
+}
+
+/* Proje sayfalarının markdown gövdesi (react-markdown çıktısı).
+   Typography plugin'i yerine markanın kendi tipografisiyle sınırlı,
+   kasıtlı olarak küçük bir küme. */
+.prose-lupra {
+  color: var(--color-white);
+  line-height: 1.75;
+}
+.prose-lupra h2 {
+  font-family: var(--font-heading);
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin: 2.5rem 0 1rem;
+}
+.prose-lupra h3 {
+  font-family: var(--font-heading);
+  font-size: 1.2rem;
+  font-weight: 600;
+  margin: 2rem 0 0.75rem;
+}
+.prose-lupra p {
+  margin: 1rem 0;
+}
+.prose-lupra ul,
+.prose-lupra ol {
+  margin: 1rem 0;
+  padding-left: 1.5rem;
+}
+.prose-lupra ul {
+  list-style: disc;
+}
+.prose-lupra ol {
+  list-style: decimal;
+}
+.prose-lupra li {
+  margin: 0.375rem 0;
+}
+.prose-lupra a {
+  color: var(--color-accent-light);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.prose-lupra a:hover {
+  color: var(--color-white);
+}
+.prose-lupra strong {
+  font-weight: 600;
+}
+.prose-lupra blockquote {
+  border-left: 3px solid var(--color-accent);
+  margin: 1.5rem 0;
+  padding-left: 1.25rem;
+  color: var(--color-muted);
+}
+.prose-lupra code {
+  background: rgb(255 255 255 / 0.08);
+  border-radius: 0.375rem;
+  padding: 0.15rem 0.4rem;
+  font-size: 0.875em;
+}
+.prose-lupra pre {
+  background: var(--color-bg-raised);
+  border: 1px solid rgb(255 255 255 / 0.1);
+  border-radius: 0.75rem;
+  margin: 1.5rem 0;
+  padding: 1.25rem;
+  overflow-x: auto;
+}
+.prose-lupra pre code {
+  background: none;
+  padding: 0;
+  font-size: 0.85rem;
+}
+.prose-lupra hr {
+  border: none;
+  border-top: 1px solid rgb(255 255 255 / 0.1);
+  margin: 2.5rem 0;
+}
+.prose-lupra img {
+  max-width: 100%;
+  border-radius: 0.75rem;
 }
 
 * {

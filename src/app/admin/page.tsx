@@ -3,13 +3,14 @@ import { getSupabaseServer } from "@/lib/supabase-server";
 async function getStats() {
   try {
     const supabase = await getSupabaseServer();
-    const { count: earlyAccessCount } = await supabase
-      .from("early_access")
-      .select("*", { count: "exact", head: true });
+    const [{ count: earlyAccessCount }, { count: projectCount }] = await Promise.all([
+      supabase.from("early_access").select("*", { count: "exact", head: true }),
+      supabase.from("projects").select("*", { count: "exact", head: true }),
+    ]);
 
-    return { earlyAccessCount: earlyAccessCount || 0 };
+    return { earlyAccessCount: earlyAccessCount || 0, projectCount: projectCount || 0 };
   } catch {
-    return { earlyAccessCount: 0 };
+    return { earlyAccessCount: 0, projectCount: 0 };
   }
 }
 
@@ -48,9 +49,17 @@ export default async function AdminPage() {
           subtitle="Son işlemler"
         />
         <StatCard
+          label="Projeler"
+          value={stats.projectCount}
+          href="/admin/projects"
+          icon="📁"
+          color="from-indigo-500"
+          subtitle="CMS sayfaları"
+        />
+        <StatCard
           label="Yakında"
           value="·"
-          subtitle="Blog, grafik, CMS"
+          subtitle="Blog, grafik, ödemeler"
           disabled
           icon="🎯"
           color="from-gray-500"
@@ -82,6 +91,7 @@ function StatCard({
   const colorStyles = {
     'from-blue-500': { border: 'border-blue-400/30 hover:border-blue-400/60', tint: 'from-blue-500/15' },
     'from-purple-500': { border: 'border-purple-400/30 hover:border-purple-400/60', tint: 'from-purple-500/15' },
+    'from-indigo-500': { border: 'border-indigo-400/30 hover:border-indigo-400/60', tint: 'from-indigo-500/15' },
     'from-gray-500': { border: 'border-white/10', tint: 'from-white/5' },
   };
 

@@ -67,6 +67,7 @@ export default async function AdminLayout({
 
           <nav className="space-y-2">
             <NavLink href="/admin" label="Kontrol Paneli" icon="📊" />
+            <NavLink href="/admin/projects" label="Projeler" icon="📁" />
             <NavLink href="/admin/early-access" label="Erken Erişim" icon="📧" />
             <NavLink href="/admin/activity" label="Aktivite" icon="📜" />
           </nav>
