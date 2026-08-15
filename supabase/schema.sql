@@ -92,3 +92,29 @@ alter table projects enable row level security;
 
 create index if not exists idx_projects_status_updated_at
   on projects(status, updated_at desc);
+
+-- Blok tabanlı içerik: sayfa artık düz markdown değil, sıralı bloklardan
+-- oluşuyor (metin, görsel, galeri, video, 3D model, alıntı, özellikler, CTA).
+-- Dizideki sıra sayfadaki sıradır. Şekli src/lib/blocks.ts'te doğrulanıyor —
+-- JSONB olarak saklamak, blok tipleri geliştikçe migration gerektirmiyor.
+alter table projects add column if not exists blocks jsonb not null default '[]'::jsonb;
+
+-- Kapak görseli: proje kartında ve sosyal medya önizlemesinde (OG) kullanılır.
+alter table projects add column if not exists cover_url text;
+
+-- ---------------------------------------------------------------------------
+-- Storage: proje medyası (görsel, video, 3D model)
+--
+-- Dosyalar tarayıcıdan DOĞRUDAN buraya yüklenir; Vercel'e hiç uğramazlar.
+-- Sebebi: Vercel'in serverless istek gövdesi 4.5 MB ile sınırlı ve disk
+-- kalıcı değil. Sunucu yalnızca kısa ömürlü bir imzalı yükleme izni üretir
+-- (src/app/admin/projects/upload-actions.ts).
+--
+-- Bucket public: proje sayfaları herkese açık, dolayısıyla medyası da öyle.
+-- Yazma yetkisi public DEĞİL — yükleme yalnızca imzalı token ile mümkün.
+-- ---------------------------------------------------------------------------
+-- 50 MB: Supabase'in ücretsiz planında dosya başına izin verilen üst sınır bu.
+-- Daha uzun videolar için ya plan yükseltmek ya da videoyu sıkıştırmak gerekir.
+insert into storage.buckets (id, name, public, file_size_limit)
+values ('project-media', 'project-media', true, 52428800)
+on conflict (id) do update set public = true, file_size_limit = 52428800;
