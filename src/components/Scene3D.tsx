@@ -9,6 +9,7 @@ import {
   type ReactNode,
   type RefObject,
 } from "react";
+import { usePathname } from "next/navigation";
 import * as THREE from "three";
 import { Canvas } from "@react-three/fiber";
 import { Environment, Lightformer } from "@react-three/drei";
@@ -304,7 +305,9 @@ export function Scene3DProvider({ children }: { children: ReactNode }) {
 // A small virtual softbox rig, not a photo HDRI — bakes once (frames={1}) into
 // a tiny cubemap so the clearcoat mark gets real specular reflections/rim
 // light without fetching an external environment texture over the network.
-function StudioLighting() {
+// Exported so Logo3D (the admin background mark) lights the same material
+// identically to the landing page.
+export function StudioLighting() {
   return (
     <Environment resolution={128} frames={1}>
       <Lightformer form="rect" intensity={2.2} color="#ffffff" position={[-3, 2.5, 2]} scale={[3, 4, 1]} target={[0, 0, 0]} />
@@ -352,13 +355,25 @@ function SceneCanvas({ layer, className }: { layer: MarkLayer; className: string
  * draws only what is nearer and sits above it. Together they composite into
  * one solid object with the DOM text threaded through its middle.
  */
+// The scroll-choreographed mark belongs to the landing page; on /admin it has
+// no sections to travel through and its front canvas (z-30) would float over
+// the panel UI, so both layers bail out there. The admin layout renders its
+// own copy of the mark (Logo3D) behind its glass panels instead.
+function useMarkHidden() {
+  const pathname = usePathname();
+  return pathname?.startsWith("/admin") ?? false;
+}
+
 export function Scene3DBack() {
+  const hidden = useMarkHidden();
   const split = useSyncExternalStore(subscribeDepth, getDepthSnapshot, getDepthServerSnapshot);
+  if (hidden) return null;
   return <SceneCanvas layer={split ? "back" : "full"} className="z-0" />;
 }
 
 export function Scene3DFront() {
+  const hidden = useMarkHidden();
   const split = useSyncExternalStore(subscribeDepth, getDepthSnapshot, getDepthServerSnapshot);
-  if (!split) return null;
+  if (hidden || !split) return null;
   return <SceneCanvas layer="front" className="z-30" />;
 }

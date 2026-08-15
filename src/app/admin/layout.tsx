@@ -40,7 +40,7 @@ export default async function AdminLayout({
               'radial-gradient(circle at 30% 20%, rgba(79, 70, 229, 0.14) 0%, transparent 55%)',
           }}
         />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 opacity-50">
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 opacity-90">
           <Logo3D size={900} />
         </div>
         {/* Edge vignette for depth — keeps the logo visible in the center */}
