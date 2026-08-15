@@ -11,7 +11,7 @@ export default async function AdminLayout({
   const supabase = await getSupabaseServer();
   const { data: { user } } = await supabase.auth.getUser();
 
-  if (!user || !isAdminAllowed(user.email)) {
+  if (!user || !(await isAdminAllowed(user.email))) {
     redirect("/login");
   }
 
@@ -25,8 +25,9 @@ export default async function AdminLayout({
         </div>
 
         <nav className="space-y-2">
-          <NavLink href="/admin/early-access" label="Erken Erişim" />
           <NavLink href="/admin" label="Kontrol Paneli" />
+          <NavLink href="/admin/early-access" label="Erken Erişim" />
+          <NavLink href="/admin/activity" label="Aktivite" />
         </nav>
 
         <div className="absolute bottom-8 left-6 right-6">

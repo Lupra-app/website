@@ -1,11 +1,12 @@
 import { getSupabaseServer } from "@/lib/supabase-server";
 import { isAdminAllowed } from "@/config/admin";
+import { logAdminAction } from "@/lib/audit-log";
 
 export async function GET() {
   const supabase = await getSupabaseServer();
   const { data: { user } } = await supabase.auth.getUser();
 
-  if (!user || !isAdminAllowed(user.email)) {
+  if (!user || !(await isAdminAllowed(user.email))) {
     return new Response("Unauthorized", { status: 401 });
   }
 
@@ -26,6 +27,13 @@ export async function GET() {
         `"${row.email}",${new Date(row.created_at).toLocaleString("tr-TR")}`
     ),
   ].join("\n");
+
+  // Log the export action
+  await logAdminAction({
+    admin_email: user.email!,
+    action: "export_early_access_csv",
+    details: { record_count: data!.length },
+  });
 
   return new Response(csv, {
     headers: {
