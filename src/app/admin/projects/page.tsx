@@ -108,7 +108,23 @@ export default async function ProjectsPage({
             <tbody>
               {rows.map((project) => (
                 <Tr key={project.id}>
-                  <Td className="font-medium text-white">{project.title}</Td>
+                  <Td className="font-medium text-white">
+                    <span className="flex items-center gap-3">
+                      {project.cover_url ? (
+                        /* eslint-disable-next-line @next/next/no-img-element -- panel içi küçük önizleme */
+                        <img
+                          src={project.cover_url}
+                          alt=""
+                          className="h-10 w-14 shrink-0 rounded-md border border-white/10 object-cover"
+                        />
+                      ) : (
+                        <span className="flex h-10 w-14 shrink-0 items-center justify-center rounded-md border border-white/10 bg-white/5 text-xs text-muted/50">
+                          —
+                        </span>
+                      )}
+                      {project.title}
+                    </span>
+                  </Td>
                   <Td className="font-mono text-xs text-muted">/{project.slug}</Td>
                   <Td>
                     <StatusBadge status={project.status} />

@@ -1,8 +1,11 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import Link from "next/link";
 import { saveProject, EMPTY_PROJECT_STATE } from "../actions";
+import type { Block } from "@/lib/blocks";
+import { BlockEditor } from "./BlockEditor";
+import { MediaUploader } from "./MediaUploader";
 
 const ERROR_MESSAGES: Record<string, string> = {
   invalid_title: "Başlık boş olamaz (en fazla 140 karakter).",
@@ -21,11 +24,14 @@ type Project = {
   title: string;
   summary: string | null;
   content: string;
+  cover_url: string | null;
+  blocks: Block[];
   status: string;
 };
 
 export function ProjectForm({ project }: { project?: Project }) {
   const [state, formAction, pending] = useActionState(saveProject, EMPTY_PROJECT_STATE);
+  const [coverUrl, setCoverUrl] = useState(project?.cover_url ?? "");
   const isEdit = Boolean(project);
   const message = state.error ? (ERROR_MESSAGES[state.error] ?? ERROR_MESSAGES.server_error) : null;
 
@@ -87,20 +93,24 @@ export function ProjectForm({ project }: { project?: Project }) {
         />
       </label>
 
-      <label className="block">
-        <span className="mb-2 block text-sm font-medium text-muted">
-          İçerik <span className="text-muted/60">— markdown</span>
-        </span>
-        <textarea
-          name="content"
-          rows={16}
-          defaultValue={project?.content ?? ""}
-          placeholder={
-            "## Sorun\n\nEmlak ofislerine WhatsApp'tan gelen talepler kayboluyor...\n\n## Çözüm\n\n- Talep yakalama\n- Otomatik yanıt"
-          }
-          className="w-full resize-y rounded-lg border border-white/10 bg-white/5 px-4 py-3 font-mono text-sm leading-relaxed text-white placeholder-muted/50 transition-colors focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
+      <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+        <input type="hidden" name="cover_url" value={coverUrl} />
+        <MediaUploader
+          kind="image"
+          value={coverUrl}
+          onChange={setCoverUrl}
+          label="Kapak görseli — proje listesinde ve sosyal medya önizlemesinde kullanılır"
         />
-      </label>
+      </div>
+
+      {/* Eski markdown gövdesi: yeni sayfalar bloklarla kuruluyor, ama daha
+          önce markdown ile yazılmış projelerin içeriği kaybolmasın diye alan
+          korunuyor ve blok yoksa public sayfada gösteriliyor. */}
+      <input type="hidden" name="content" value={project?.content ?? ""} />
+
+      <div className="border-t border-white/10 pt-6">
+        <BlockEditor name="blocks" initial={project?.blocks ?? []} />
+      </div>
 
       <div className="flex flex-wrap items-center justify-between gap-4">
         <label className="flex items-center gap-3">

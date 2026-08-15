@@ -2,6 +2,7 @@ import "server-only";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
 import { requireAdmin } from "@/lib/dal";
 import { toRange, pageCount } from "@/lib/pagination";
+import { parseBlocks, type Block } from "@/lib/blocks";
 
 /**
  * Admin panelinin TÜM veri okumaları burada.
@@ -42,8 +43,14 @@ export type ProjectListRow = {
   title: string;
   status: string;
   updated_at: string;
+  cover_url: string | null;
 };
-export type ProjectRow = ProjectListRow & { summary: string | null; content: string };
+export type ProjectRow = ProjectListRow & {
+  summary: string | null;
+  content: string;
+  cover_url: string | null;
+  blocks: Block[];
+};
 export type AdminUserRow = { id: string; email: string; created_at: string };
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -54,11 +61,12 @@ function escapeLike(value: string): string {
 }
 
 function fail(what: string, error: { code?: string; message: string }): never {
-  // PGRST205 = tablo PostgREST şema önbelleğinde yok, yani migration hiç
-  // çalıştırılmamış. Ham PostgREST mesajı yerine ne yapılacağını söyleyelim.
-  if (error.code === "PGRST205") {
+  // PGRST205 = tablo şema önbelleğinde yok, 42703 = kolon yok. İkisi de aynı
+  // sebepten olur: supabase/schema.sql güncellendi ama SQL Editor'da
+  // çalıştırılmadı. Ham PostgREST mesajı yerine ne yapılacağını söyleyelim.
+  if (error.code === "PGRST205" || error.code === "42703") {
     throw new Error(
-      `${what} okunamadı: ilgili tablo Supabase'de yok. supabase/schema.sql dosyasını Supabase → SQL Editor'da çalıştır.`
+      `${what} okunamadı: veritabanı şeması güncel değil. supabase/schema.sql dosyasını Supabase → SQL Editor'da çalıştır.`
     );
   }
   throw new Error(`${what} okunamadı (${error.code ?? "?"}): ${error.message}`);
@@ -182,7 +190,7 @@ export async function listProjects(opts: {
 
   let query = getSupabaseAdmin()
     .from("projects")
-    .select("id, slug, title, status, updated_at", { count: "exact" })
+    .select("id, slug, title, status, updated_at, cover_url", { count: "exact" })
     .order("updated_at", { ascending: false })
     .range(from, to);
 
@@ -214,12 +222,15 @@ export async function getProjectById(id: string): Promise<ProjectRow | null> {
 
   const { data, error } = await getSupabaseAdmin()
     .from("projects")
-    .select("id, slug, title, summary, content, status, updated_at")
+    .select("id, slug, title, summary, content, cover_url, blocks, status, updated_at")
     .eq("id", id)
     .maybeSingle();
 
   if (error) fail("Proje", error);
-  return data;
+  if (!data) return null;
+
+  // blocks JSONB olarak geliyor; editöre vermeden önce şeklini doğrula.
+  return { ...data, blocks: parseBlocks(data.blocks) };
 }
 
 export async function listAdminUsers(): Promise<AdminUserRow[]> {

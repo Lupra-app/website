@@ -6,6 +6,7 @@ import { getSupabaseAdmin } from "@/lib/supabase-admin";
 import { requireAdmin } from "@/lib/dal";
 import { logAdminAction } from "@/lib/audit-log";
 import { SLUG_RE, UUID_RE } from "@/lib/validation";
+import { parseBlocks, type Block } from "@/lib/blocks";
 
 /**
  * Hata durumunda REDIRECT ETMİYORUZ, state döndürüyoruz.
@@ -43,6 +44,8 @@ type ProjectFields = {
   title: string;
   summary: string;
   content: string;
+  coverUrl: string;
+  blocks: Block[];
   status: "draft" | "published";
 };
 
@@ -51,7 +54,13 @@ function parseFields(formData: FormData): { fields?: ProjectFields; error?: stri
   const title = String(formData.get("title") ?? "").trim();
   const summary = String(formData.get("summary") ?? "").trim();
   const content = String(formData.get("content") ?? "");
+  const coverUrl = String(formData.get("cover_url") ?? "").trim();
   const status = formData.get("status") === "published" ? "published" : "draft";
+
+  // Bloklar tarayıcıda JSON'a çevrilip gizli bir input'la geliyor, yani
+  // tamamen istemci kontrolünde. parseBlocks beyaz liste mantığıyla yeniden
+  // inşa ediyor — güvenlik sınırı burası.
+  const blocks = parseBlocks(formData.get("blocks"));
 
   if (!title || title.length > MAX_TITLE) return { error: "invalid_title" };
   if (!SLUG_RE.test(slug) || slug.length > MAX_SLUG) return { error: "invalid_slug" };
@@ -59,7 +68,7 @@ function parseFields(formData: FormData): { fields?: ProjectFields; error?: stri
   if (summary.length > MAX_SUMMARY) return { error: "invalid_summary" };
   if (content.length > MAX_CONTENT) return { error: "content_too_long" };
 
-  return { fields: { slug, title, summary, content, status } };
+  return { fields: { slug, title, summary, content, coverUrl, blocks, status } };
 }
 
 function revalidateProject(slug: string) {
@@ -93,6 +102,8 @@ export async function saveProject(
         title: fields.title,
         summary: fields.summary || null,
         content: fields.content,
+        cover_url: fields.coverUrl || null,
+        blocks: fields.blocks,
         status: fields.status,
       })
       .select("id")
@@ -124,6 +135,8 @@ export async function saveProject(
         title: fields.title,
         summary: fields.summary || null,
         content: fields.content,
+        cover_url: fields.coverUrl || null,
+        blocks: fields.blocks,
         status: fields.status,
         updated_at: new Date().toISOString(),
       })

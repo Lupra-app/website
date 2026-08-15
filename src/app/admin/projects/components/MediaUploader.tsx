@@ -126,9 +126,9 @@ export function MediaUploader({
 
 function MediaThumb({ kind, url }: { kind: MediaKind; url: string }) {
   if (kind === "image") {
-    // eslint-disable-next-line @next/next/no-img-element -- Storage'daki
-    // rastgele kaynaklar için next/image'in remotePatterns yapılandırması
-    // gerekir; bu yalnızca panel içi küçük bir önizleme.
+    // next/image burada remotePatterns yapılandırması ister; bu yalnızca
+    // panel içi 56px'lik bir önizleme.
+    // eslint-disable-next-line @next/next/no-img-element
     return <img src={url} alt="" className="h-14 w-14 rounded-lg object-cover" />;
   }
   if (kind === "video") {

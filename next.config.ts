@@ -21,8 +21,17 @@ const nextConfig: NextConfig = {
               "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net; " +
               "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
               "font-src 'self' https://fonts.gstatic.com; " +
-              "img-src 'self' data: https:; " +
-              "connect-src 'self' https://*.supabase.co https://accounts.google.com; " +
+              "img-src 'self' data: blob: https:; " +
+              // media-src tanımlı olmasa default-src'ye düşerdi ('self'), yani
+              // Supabase Storage'daki videolar sessizce engellenirdi.
+              // blob: gerekiyor çünkü panelde yükleme öncesi önizleme
+              // blob URL'iyle yapılıyor.
+              "media-src 'self' blob: https://*.supabase.co; " +
+              // connect-src: hem Storage'a doğrudan yükleme hem de 3D
+              // modellerin (GLB) fetch ile indirilmesi buradan geçiyor.
+              "connect-src 'self' blob: https://*.supabase.co https://accounts.google.com; " +
+              // worker-src: three.js/drei bazı çözücüleri worker'da çalıştırır.
+              "worker-src 'self' blob:; " +
               "frame-src 'self' https://accounts.google.com; " +
               // Form hedefini, <base> enjeksiyonunu, iframe'e gömülmeyi ve
               // eklenti gömmeyi kapatır.
