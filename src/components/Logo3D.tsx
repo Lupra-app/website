@@ -18,9 +18,9 @@ import { StudioLighting } from "./Scene3D";
 // background reads as the same object, just parked and slowly turning.
 const BASE_TILT_X = THREE.MathUtils.degToRad(-27);
 const BASE_TILT_Y = THREE.MathUtils.degToRad(22);
-// Faster than the landing page's idle spin (0.08) — here the rotation *is* the
-// animation, not a subtle accent under scroll choreography.
-const SPIN_RAD_PER_SEC = 0.18;
+// Slightly faster than the landing page's idle spin (0.08), but still slow —
+// it's a background texture behind the glass panels, not a focal point.
+const SPIN_RAD_PER_SEC = 0.1;
 /** Mark diameter as a fraction of the canvas, in "vh" of the canvas height. */
 const MARK_SIZE_VH = 80;
 

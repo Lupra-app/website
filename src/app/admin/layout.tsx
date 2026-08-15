@@ -40,7 +40,7 @@ export default async function AdminLayout({
               'radial-gradient(circle at 30% 20%, rgba(79, 70, 229, 0.14) 0%, transparent 55%)',
           }}
         />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 opacity-90">
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 opacity-35">
           <Logo3D size={900} />
         </div>
         {/* Edge vignette for depth — keeps the logo visible in the center */}
@@ -48,14 +48,14 @@ export default async function AdminLayout({
           className="absolute inset-0"
           style={{
             background:
-              'radial-gradient(circle at 50% 50%, transparent 40%, rgba(0, 0, 0, 0.45) 100%)',
+              'radial-gradient(circle at 50% 50%, transparent 35%, rgba(0, 0, 0, 0.65) 100%)',
           }}
         />
       </div>
 
       <div className="flex min-h-screen">
         {/* Sidebar (glass) */}
-        <aside className="sticky top-0 h-screen w-60 shrink-0 border-r border-white/10 bg-white/6 px-6 py-8 shadow-2xl backdrop-blur-2xl">
+        <aside className="glass sticky top-0 h-screen w-60 shrink-0 border-r border-white/20 px-6 py-8">
           <div className="mb-12 flex items-center gap-3">
             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-accent to-accent-light p-1">
               <Logo iconOnly size={20} />
@@ -72,7 +72,7 @@ export default async function AdminLayout({
           </nav>
 
           <div className="absolute bottom-8 left-6 right-6">
-            <div className="rounded-2xl border border-white/10 bg-white/8 px-4 py-3 text-xs backdrop-blur-xl transition-all hover:border-white/25">
+            <div className="glass rounded-2xl border border-white/20 px-4 py-3 text-xs transition-colors hover:border-white/40">
               <p className="text-muted/80 text-xs truncate font-medium">{user.email}</p>
               <form action="/api/auth/logout" method="POST" className="mt-3">
                 <button
@@ -89,7 +89,7 @@ export default async function AdminLayout({
         {/* Main content (glass card over the rotating logo) */}
         <main className="flex-1 overflow-y-auto">
           <div className="mx-auto max-w-7xl p-8">
-            <div className="rounded-3xl border border-white/10 bg-white/7 p-8 shadow-2xl backdrop-blur-2xl transition-colors duration-300 hover:border-white/20">
+            <div className="glass rounded-3xl border border-white/20 p-8 transition-colors duration-300 hover:border-white/30">
               {children}
             </div>
           </div>
@@ -111,7 +111,7 @@ function NavLink({
   return (
     <a
       href={href}
-      className="flex items-center gap-3 rounded-lg px-4 py-2.5 text-sm text-muted transition-all hover:bg-white/12 hover:text-white border border-white/10 hover:border-white/25 backdrop-blur-sm hover:shadow-lg"
+      className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-muted transition-all hover:border-white/25 hover:bg-white/15 hover:text-white"
     >
       {icon && <span className="text-base">{icon}</span>}
       {label}

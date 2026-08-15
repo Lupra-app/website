@@ -77,16 +77,20 @@ function StatCard({
   icon?: string;
   color?: string;
 }) {
+  // Glass cards: the `glass` utility owns background + blur, these only add
+  // each card's color identity as a border + faint tint overlay.
   const colorStyles = {
-    'from-blue-500': 'border-blue-500/50 bg-gradient-to-br from-blue-600/20 to-blue-900/10 hover:shadow-blue-500/30',
-    'from-purple-500': 'border-purple-500/50 bg-gradient-to-br from-purple-600/20 to-purple-900/10 hover:shadow-purple-500/30',
-    'from-gray-500': 'border-gray-500/30 bg-gradient-to-br from-gray-600/10 to-gray-900/5',
+    'from-blue-500': { border: 'border-blue-400/30 hover:border-blue-400/60', tint: 'from-blue-500/15' },
+    'from-purple-500': { border: 'border-purple-400/30 hover:border-purple-400/60', tint: 'from-purple-500/15' },
+    'from-gray-500': { border: 'border-white/10', tint: 'from-white/5' },
   };
 
-  const baseClass = colorStyles[color as keyof typeof colorStyles] || colorStyles['from-gray-500'];
+  const { border, tint } = colorStyles[color as keyof typeof colorStyles] || colorStyles['from-gray-500'];
 
   const content = (
-    <div className={`group relative rounded-3xl border-2 ${baseClass} backdrop-blur-xl px-6 py-8 overflow-hidden transition-all hover:border-opacity-100 ${href && !disabled ? 'cursor-pointer hover:shadow-2xl' : ''}`}>
+    <div className={`glass group relative rounded-3xl border ${border} px-6 py-8 overflow-hidden transition-colors ${href && !disabled ? 'cursor-pointer' : ''}`}>
+      {/* Color tint over the glass */}
+      <div className={`absolute inset-0 bg-gradient-to-br ${tint} to-transparent`} />
       {/* Glow effect */}
       <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
         <div className="absolute top-0 right-0 w-40 h-40 bg-accent/20 rounded-full blur-3xl" />
