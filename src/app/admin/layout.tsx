@@ -29,19 +29,22 @@ export default async function AdminLayout({
 
   return (
     <div className="relative min-h-screen bg-gradient-to-br from-bg via-bg to-bg-raised overflow-hidden">
-      {/* 3D Background Logo */}
-      <div className="fixed inset-0 -z-10 opacity-10 pointer-events-none">
-        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px]">
+      {/* Base Background */}
+      <div className="fixed inset-0 -z-50 bg-black/30" />
+
+      {/* 3D Background Logo - Deep Background */}
+      <div className="fixed inset-0 -z-40 opacity-5 pointer-events-none">
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-200 h-200 blur-3xl">
           <Logo3D />
         </div>
       </div>
 
-      {/* Glassmorphism Blur Effect */}
-      <div className="fixed inset-0 -z-10 backdrop-blur-3xl" />
+      {/* Strong Glassmorphism Blur Effect */}
+      <div className="fixed inset-0 -z-30 backdrop-blur-2xl bg-gradient-to-b from-white/5 via-transparent to-white/5" />
 
-      <div className="flex min-h-screen text-white">
+      <div className="relative z-10 flex min-h-screen text-white">
         {/* Sidebar */}
-        <aside className="w-60 border-r border-white/10 bg-white/5 backdrop-blur-md sticky top-0 h-screen px-6 py-8">
+        <aside className="w-60 border-r border-white/30 bg-white/8 backdrop-blur-xl sticky top-0 h-screen px-6 py-8 shadow-2xl">
         <div className="mb-12 flex items-center gap-3">
           <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-accent to-accent-light p-1">
             <Logo iconOnly size={20} />
@@ -58,8 +61,8 @@ export default async function AdminLayout({
         </nav>
 
         <div className="absolute bottom-8 left-6 right-6">
-          <div className="rounded-2xl border border-white/20 bg-white/10 backdrop-blur-md px-4 py-3 text-xs hover:bg-white/15 transition-all">
-            <p className="text-muted text-xs truncate">{user.email}</p>
+          <div className="rounded-2xl border border-white/30 bg-gradient-to-br from-white/20 to-white/10 backdrop-blur-xl px-4 py-3 text-xs hover:from-white/25 hover:to-white/15 hover:border-white/40 transition-all shadow-lg">
+            <p className="text-muted/90 text-xs truncate font-medium">{user.email}</p>
             <form action="/api/auth/logout" method="POST" className="mt-3">
               <button
                 type="submit"
@@ -74,8 +77,8 @@ export default async function AdminLayout({
 
       {/* Main */}
       <main className="flex-1 overflow-y-auto">
-        <div className="p-8 max-w-7xl">
-          <div className="rounded-2xl border border-white/20 bg-white/10 backdrop-blur-md p-8 shadow-xl">
+        <div className="p-8 max-w-7xl mx-auto">
+          <div className="rounded-3xl border border-white/30 bg-gradient-to-br from-white/15 to-white/5 backdrop-blur-2xl p-8 shadow-2xl hover:border-white/40 transition-all duration-300">
             {children}
           </div>
         </div>
