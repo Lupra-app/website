@@ -12,7 +12,7 @@ import {
   type SceneTarget,
 } from "@/lib/scene3d";
 import { LupraMark } from "./LupraMark";
-import { StudioLighting } from "./Scene3D";
+import { StudioLighting } from "./StudioLighting";
 
 // Same resting pose as the landing page mark (see Scene3D.tsx) so the admin
 // background reads as the same object, just parked and slowly turning.

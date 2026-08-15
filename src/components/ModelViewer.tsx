@@ -4,6 +4,7 @@ import { Suspense } from "react";
 import { Canvas } from "@react-three/fiber";
 import { OrbitControls, Stage, useGLTF, Html } from "@react-three/drei";
 import { useMediaQuery } from "@/lib/media-query";
+import { StudioLighting } from "./StudioLighting";
 
 /**
  * Ziyaretçinin fareyle döndürebildiği GLB/GLTF görüntüleyici.
@@ -62,11 +63,13 @@ export default function ModelViewer({
     >
       <Canvas camera={{ position: [0, 0, 5], fov: 45 }} dpr={[1, 2]} gl={{ antialias: true }}>
         <Suspense fallback={<Loader />}>
-          {/* Stage modeli otomatik ortalar, ölçekler ve stüdyo ışığı kurar —
-              yüklenen modelin boyutunu önceden bilemediğimiz için şart. */}
-          <Stage intensity={0.5} environment="city" adjustCamera>
+          {/* environment={null} ŞART: drei'nin hazır ortamları ("city" vb.)
+              HDR dosyasını dış bir CDN'den indiriyor ve sitenin CSP'si buna
+              izin vermiyor. Işığı kendimiz kuruyoruz — ağ isteği yok. */}
+          <Stage intensity={0.5} environment={null} adjustCamera>
             <Model url={url} />
           </Stage>
+          <StudioLighting />
         </Suspense>
         <OrbitControls
           makeDefault

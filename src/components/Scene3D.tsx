@@ -12,7 +12,7 @@ import {
 import { usePathname } from "next/navigation";
 import * as THREE from "three";
 import { Canvas } from "@react-three/fiber";
-import { Environment, Lightformer } from "@react-three/drei";
+import { StudioLighting } from "./StudioLighting";
 import { gsap, useGSAP, ScrollTrigger, prefersReducedMotion } from "@/lib/gsap";
 import {
   CAMERA_FOV,
@@ -300,21 +300,6 @@ export function Scene3DProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return <SceneTargetContext.Provider value={target}>{children}</SceneTargetContext.Provider>;
-}
-
-// A small virtual softbox rig, not a photo HDRI — bakes once (frames={1}) into
-// a tiny cubemap so the clearcoat mark gets real specular reflections/rim
-// light without fetching an external environment texture over the network.
-// Exported so Logo3D (the admin background mark) lights the same material
-// identically to the landing page.
-export function StudioLighting() {
-  return (
-    <Environment resolution={128} frames={1}>
-      <Lightformer form="rect" intensity={2.2} color="#ffffff" position={[-3, 2.5, 2]} scale={[3, 4, 1]} target={[0, 0, 0]} />
-      <Lightformer form="rect" intensity={1.1} color="#818CF8" position={[3, -1.5, 2.5]} scale={[3, 3, 1]} target={[0, 0, 0]} />
-      <Lightformer form="ring" intensity={3} color="#ffffff" position={[0, 0, -4]} scale={6} target={[0, 0, 0]} />
-    </Environment>
-  );
 }
 
 function SceneCanvas({ layer, className }: { layer: MarkLayer; className: string }) {
