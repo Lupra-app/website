@@ -48,23 +48,26 @@ export function EarlyAccessTableClient({
 
       {/* Table */}
       {filteredData.length === 0 ? (
-        <div className="rounded-lg border border-white/10 bg-white/5 px-8 py-12 text-center">
-          <p className="text-sm text-muted">
+        <div className="rounded-2xl border border-white/20 bg-white/5 backdrop-blur-md px-8 py-12 text-center">
+          <p className="text-lg font-semibold text-muted/80">
             {data.length === 0
-              ? "Henüz hiçbir kayıt yok."
-              : `"${searchQuery}" ile eşleşen kayıt bulunamadı.`}
+              ? "📭 Henüz hiçbir kayıt yok"
+              : `🔍 "${searchQuery}" ile eşleşen kayıt bulunamadı`}
+          </p>
+          <p className="mt-2 text-sm text-muted/60">
+            {data.length === 0 ? "Yeni kayıtlar burada görünecek." : "Farklı bir arama terimi deneyin."}
           </p>
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-lg border border-white/10 bg-white/5">
+        <div className="overflow-x-auto rounded-2xl border border-white/20 bg-white/5 backdrop-blur-md">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-white/10">
+              <tr className="border-b border-white/20 bg-white/5">
                 <th className="px-6 py-4 text-left font-semibold text-white">
-                  E-posta
+                  📧 E-posta
                 </th>
                 <th className="px-6 py-4 text-left font-semibold text-white">
-                  Tarih
+                  📅 Tarih
                 </th>
               </tr>
             </thead>
@@ -72,12 +75,12 @@ export function EarlyAccessTableClient({
               {filteredData.map((record, idx) => (
                 <tr
                   key={record.id}
-                  className={`border-b border-white/5 ${
-                    idx % 2 === 0 ? "bg-white/[0.01]" : ""
-                  } hover:bg-white/10 transition-colors`}
+                  className={`border-b border-white/10 transition-colors hover:bg-white/10 ${
+                    idx % 2 === 0 ? "bg-white/[0.02]" : ""
+                  }`}
                 >
-                  <td className="px-6 py-4 text-white">{record.email}</td>
-                  <td className="px-6 py-4 text-muted">
+                  <td className="px-6 py-4 font-mono text-white">{record.email}</td>
+                  <td className="px-6 py-4 text-muted/80">
                     {new Date(record.created_at).toLocaleDateString("tr-TR", {
                       year: "numeric",
                       month: "2-digit",
@@ -90,8 +93,8 @@ export function EarlyAccessTableClient({
               ))}
             </tbody>
           </table>
-          <div className="border-t border-white/10 px-6 py-3 text-xs text-muted">
-            {filteredData.length} / {data.length} kayıt
+          <div className="border-t border-white/20 bg-white/5 px-6 py-3 text-xs font-medium text-muted/70">
+            ✓ {filteredData.length} / {data.length} kayıt
           </div>
         </div>
       )}
