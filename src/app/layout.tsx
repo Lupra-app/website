@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Inter, Poppins } from "next/font/google";
 import { SmoothScroll } from "@/components/SmoothScroll";
 import { CustomCursor } from "@/components/CustomCursor";
-import { Scene3DProvider, Scene3DBack, Scene3DFront } from "@/components/Scene3D";
+import { Scene3DProvider, Scene3DBack } from "@/components/Scene3D";
 import "./globals.css";
 
 const poppins = Poppins({
@@ -94,16 +94,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             __html: JSON.stringify(websiteJsonLd).replace(/</g, "\\u003c"),
           }}
         />
-        {/* The mark straddles the page content: Scene3DBack draws the half
-            farther from the camera than the text plane, Scene3DFront draws the
-            nearer half on top. Both must stay inside the same provider — they
-            share one pose, and split rendering only holds together if neither
-            layer integrates its own animation state. */}
+        {/* The animated mark lives in one fixed canvas behind everything.
+            It is rendered before the content on purpose: both are positioned
+            with an auto/0 z-index, so DOM order is what puts the page text on
+            top of it. Never move this below {children}. */}
         <Scene3DProvider>
           <Scene3DBack />
           <CustomCursor />
           <SmoothScroll>{children}</SmoothScroll>
-          <Scene3DFront />
         </Scene3DProvider>
       </body>
     </html>

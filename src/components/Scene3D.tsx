@@ -5,7 +5,6 @@ import {
   useContext,
   useEffect,
   useRef,
-  useSyncExternalStore,
   type ReactNode,
   type RefObject,
 } from "react";
@@ -18,7 +17,9 @@ import {
   CAMERA_FOV,
   CAMERA_DISTANCE,
   vhToScale,
-  vwToX,
+  pxToWorldX,
+  pxToWorldY,
+  pxDiameterToScale,
   createSceneTarget,
   type SceneTarget,
 } from "@/lib/scene3d";
@@ -52,23 +53,18 @@ const HERO_Y = 0.66;
 const HERO_SCALE_VH = 42;
 
 /**
- * Desktop + motion allowed. Below this the mark renders as a single unsplit
- * layer: the depth effect costs a second WebGL context, and the travel
- * choreography it decorates doesn't run on small screens anyway.
+ * The side-travel choreography needs a gutter beside the content to travel in.
+ *
+ * The content column is max-w-5xl (1024px), so the gutter is
+ * (viewport - 1024) / 2. Below ~1200px there is so little of it that the mark
+ * would spend the whole journey hidden behind the text — no longer a
+ * correctness problem now that it renders behind the page, but pointless to
+ * animate. Those widths get the calm version instead, which never moves
+ * sideways at all.
  */
-const DEPTH_QUERY = "(min-width: 768px) and (prefers-reduced-motion: no-preference)";
-
-function subscribeDepth(callback: () => void) {
-  const mql = window.matchMedia(DEPTH_QUERY);
-  mql.addEventListener("change", callback);
-  return () => mql.removeEventListener("change", callback);
-}
-function getDepthSnapshot() {
-  return window.matchMedia(DEPTH_QUERY).matches;
-}
-function getDepthServerSnapshot() {
-  return false;
-}
+const TRAVEL_QUERY = "(min-width: 1200px) and (prefers-reduced-motion: no-preference)";
+const CALM_QUERY =
+  "(min-width: 768px) and (max-width: 1199.98px) and (prefers-reduced-motion: no-preference)";
 
 const SceneTargetContext = createContext<RefObject<SceneTarget> | null>(null);
 
@@ -146,16 +142,78 @@ export function Scene3DProvider({ children }: { children: ReactNode }) {
     const featuresEl = document.getElementById("features");
     const earlyEl = document.getElementById("early-access");
     const footerEl = document.querySelector("footer");
+    // Optional: the choreography adapts to it if present, ignores it if not.
+    const faqEl = document.getElementById("faq");
     if (!heroEl || !howEl || !featuresEl || !earlyEl || !footerEl) return;
 
     const mm = gsap.matchMedia();
 
-    // Desktop, motion allowed: one scrubbed timeline carries the mark from the
-    // hero to the signup card. Tweens overlap (each starts slightly before the
-    // previous ends) so the mark never fully stops between beats, and every
-    // move eases on a sine curve — the gentlest of GSAP's standard eases, which
-    // is what keeps a scrubbed transform from feeling stepped.
-    mm.add(DEPTH_QUERY, () => {
+    // ---------------------------------------------------------------------
+    // Layout probe. Everything below is measured from the real content box,
+    // never guessed, and re-measured on every ScrollTrigger refresh.
+    //
+    // The page is a fixed max-width column centred in the viewport, so the
+    // only place the mark can travel without covering text is the gutter
+    // beside that column. How wide that gutter is depends entirely on the
+    // window, which is exactly what the old viewport-fraction positions
+    // failed to account for.
+    // ---------------------------------------------------------------------
+    const contentEl = howEl.querySelector<HTMLElement>(":scope > div");
+
+    /** Half-width of the widest content column, in CSS pixels. */
+    function contentHalfWidth() {
+      const measured = contentEl?.getBoundingClientRect().width;
+      return (measured && measured > 0 ? measured : Math.min(window.innerWidth - 40, 1024)) / 2;
+    }
+
+    /**
+     * The lane beside the content column, and how big the mark rides in it.
+     *
+     * The mark no longer has to fit *inside* the gutter. It renders behind the
+     * page, so tucking its inner edge a little way under the content column is
+     * harmless — the text paints on top. Sizing it to the gutter alone made it
+     * shrink to a speck halfway down the page; keying off viewport height as
+     * well keeps it a real object all the way through, closer to the size it
+     * had in the hero.
+     */
+    function lane() {
+      const viewportHalf = window.innerWidth / 2;
+      const gutter = Math.max(0, viewportHalf - contentHalfWidth());
+      const diameter = gsap.utils.clamp(200, 330, Math.max(gutter * 1.35, window.innerHeight * 0.3));
+      return { gutter, diameter, centreFromEdge: gutter / 2 };
+    }
+
+    const laneX = (side: -1 | 1) => {
+      const { centreFromEdge } = lane();
+      return pxToWorldX(side < 0 ? centreFromEdge : window.innerWidth - centreFromEdge);
+    };
+    const laneScale = () => pxDiameterToScale(lane().diameter);
+
+    /**
+     * Where a section sits in the journey, as 0..1.
+     *
+     * Beat timing is derived from this instead of hand-tuned durations: when a
+     * section is added or resized (the FAQ block, for instance) the beats move
+     * with it automatically. Hand-tuned durations silently desynchronised from
+     * the page every time its content changed.
+     */
+    const journeyStart = () => heroEl.offsetTop;
+    const journeyEnd = () => earlyEl.offsetTop + earlyEl.offsetHeight - window.innerHeight;
+
+    function progressOf(el: HTMLElement, bias = 0.5) {
+      const start = journeyStart();
+      const length = Math.max(1, journeyEnd() - start);
+      const centre = el.offsetTop + el.offsetHeight * bias - window.innerHeight / 2;
+      return gsap.utils.clamp(0, 1, (centre - start) / length);
+    }
+
+    // Wide desktop, motion allowed: the mark leaves the hero, rides the empty
+    // gutter down the page beside the content, crosses to the other side, and
+    // returns to centre over the signup card.
+    //
+    // The side trip only exists if there IS a gutter — see TRAVEL_QUERY.
+    // Narrower screens get the calm version in the branch after this one.
+    mm.add(TRAVEL_QUERY, () => {
       const t = target.current;
 
       const tl = gsap.timeline({
@@ -177,82 +235,93 @@ export function Scene3DProvider({ children }: { children: ReactNode }) {
         },
       });
 
-      // Beat 1 — get clear of the hero headline.
-      //
-      // The mark is fixed to the viewport and the headline sits just below it,
-      // so as the page scrolls the headline *always* travels up through the
-      // mark's horizontal band. No vertical choreography can avoid that; only
-      // horizontal separation can — so this beat still leads with the sideways
-      // move (`power2.out` front-loads it) and lifts `y` at the same time to
-      // let the headline pass underneath sooner. A `sine.inOut` here — slow at
-      // both ends — is what once made the mark wade straight down through the
-      // headline, so the ease must stay out-biased.
-      //
-      // Distance and pace are deliberately gentler than they first were:
-      // -0.72 of the half-width over 0.8 units read as the mark being flung
-      // off-screen the instant you touched the wheel. Roughly two thirds of
-      // the travel, spread over twice the scroll distance, clears the headline
-      // just as well without the lurch.
-      tl.to(
-        t,
-        {
-          x: () => vwToX(-0.46),
-          y: 0.86,
-          scale: vhToScale(38),
-          duration: 1.6,
-          ease: "power2.out",
-        },
-        0
-      )
-        // Beat 2 — swing back in and descend into the "Nasıl çalışır" column.
-        // Shrunk from the hero's scale here on: the reserved left column sits
-        // directly under the section heading, so the ring's descent always
-        // crosses the heading's row at some point on the way down — smaller
-        // keeps that crossing brief instead of stamping over the words. But
-        // 14vh made the mark almost vanish mid-page; ~21vh still threads the
-        // column while staying a legible object.
-        .to(t, { x: () => vwToX(-0.44), y: -0.05, scale: vhToScale(21), duration: 1.5, ease: "sine.inOut" }, ">-0.15")
-        // Beat 3 — travel down the left column alongside the numbered steps.
-        // Bounded (not cumulative) so it can never drift out of the viewport.
-        // Nudged further left than beat 2 rather than dead-centre: the last
-        // step's heading sits at this same height in the column next door, and
-        // dead-centre was close enough to clip its first letter as the gap in
-        // the ring's sweep rotated past that edge mid-scroll. The extra offset
-        // also buys back the room the larger scale takes up.
-        .to(t, { x: () => vwToX(-0.54), y: -1.15, scale: vhToScale(20), duration: 1.6, ease: "sine.inOut" }, ">-0.3")
-        // Beat 4 — sweep past the feature cards. Unlike "Nasıl çalışır" this
-        // section has no reserved lane, and the 2-up card grid spans almost
-        // the full content width, so there's no horizontal gap to thread
-        // through. Split in two so the path goes up-then-across instead of a
-        // diagonal cutting straight through the grid: 4a clears the card
-        // row's height first (barely moving sideways), 4b does the sideways
-        // travel once already above the cards. A single diagonal tween from
-        // the steps column to the right edge — tried first — dragged the
-        // ring straight across both card titles on the way.
-        .to(t, { y: -0.3, scale: vhToScale(22), duration: 1.0, ease: "sine.out" }, ">-0.05")
-        .to(t, { x: () => vwToX(0.72), duration: 1.8, ease: "sine.inOut" }, ">-0.05")
-        // Beat 5 — return to centre, then scale up and settle over the signup
-        // card. Also split, for the same reason as beat 4: growing to full
-        // size *while* still sliding back across the feature cards briefly
-        // turned the mark into the biggest, most solid shape it's been all
-        // page, right on top of the cards it had just cleared. Recentring
-        // small first and only growing once back at x/y 0 keeps the growth
-        // confined to the empty band above the signup card.
-        .to(t, { x: 0, y: 0, duration: 1.0, ease: "sine.inOut" }, ">-0.35")
-        // Held small for a beat after recentring: the page is short enough
-        // that the feature cards and the signup card are both still in the
-        // scroll range here, so growth waits for a bit more scroll distance
-        // to pass — letting the cards scroll further up — before it starts.
-        .to(t, { scale: vhToScale(38), opacity: 0.55, duration: 0.9, ease: "sine.inOut" }, ">+=0.75")
-        // The loop closes: one gentle pulse of the indigo sphere.
-        .to(t, { dotPulse: 1.3, duration: 0.45, ease: "sine.out" }, ">-0.2")
-        .to(t, { dotPulse: 1, duration: 0.5, ease: "sine.inOut" });
+      // Beat positions are section positions. The timeline's total duration is
+      // 1, so a position IS the journey progress at which that move happens —
+      // measured from the DOM rather than accumulated from hand-tuned
+      // durations, which is what used to drift out of sync with the page.
+      const pSteps = progressOf(howEl, 0.35);
+      const pFeatures = progressOf(featuresEl, 0.4);
+      const pFaq = progressOf(faqEl ?? featuresEl, 0.5);
+
+      // Hero exit finishes shortly before the steps section reaches centre;
+      // the crossing to the far side happens over the feature cards; the
+      // return to centre begins once the FAQ is behind us.
+      // Clamped so an unusual page order can never push a beat past the end of
+      // the timeline — the measurements drive the rhythm, but the journey
+      // still has to finish inside its scroll range.
+      const exitEnd = gsap.utils.clamp(0.12, 0.4, pSteps - 0.06);
+      const crossStart = gsap.utils.clamp(exitEnd + 0.06, 0.72, pFeatures - 0.1);
+      const returnStart = gsap.utils.clamp(crossStart + 0.1, 0.88, Math.min(pFaq + 0.08, 0.86));
+
+      tl
+        // Beat 1 — slide out of the hero into the left gutter.
+        //
+        // The mark is fixed to the viewport and the headline scrolls up
+        // through its band, so only horizontal separation can keep them apart;
+        // `power2.out` front-loads the sideways move so the lane is reached
+        // before the headline arrives. It stays out-biased on purpose — a
+        // symmetric ease here is what once made the mark wade straight down
+        // through the headline.
+        .to(
+          t,
+          {
+            x: () => laneX(-1),
+            y: () => pxToWorldY(window.innerHeight * 0.34),
+            scale: laneScale,
+            ease: "power2.out",
+            duration: exitEnd,
+          },
+          0
+        )
+        // Beat 2 — ride the gutter down beside the steps. Purely vertical:
+        // the lane has no text in it at any height, so this can never collide.
+        .to(
+          t,
+          {
+            y: () => pxToWorldY(window.innerHeight * 0.66),
+            ease: "sine.inOut",
+            duration: crossStart - exitEnd,
+          },
+          exitEnd
+        )
+        // Beat 3 — cross to the opposite gutter over the feature cards.
+        // Lifted while crossing so the path arcs over the card grid instead of
+        // cutting through the middle of it.
+        .to(
+          t,
+          {
+            x: () => laneX(1),
+            y: () => pxToWorldY(window.innerHeight * 0.4),
+            ease: "sine.inOut",
+            duration: returnStart - crossStart,
+          },
+          crossStart
+        )
+        // Beat 4 — return to centre and grow over the signup card. Centre is
+        // safe here: the card is max-w-2xl, and the mark settles in the band
+        // above it rather than on it.
+        .to(
+          t,
+          {
+            x: 0,
+            y: 0,
+            scale: vhToScale(36),
+            opacity: 0.55,
+            ease: "sine.inOut",
+            duration: Math.max(0.08, 0.92 - returnStart),
+          },
+          returnStart
+        )
+        // The loop closes: one gentle pulse of the indigo sphere. Positioned so
+        // the timeline ends at exactly 1 — its total duration is what the
+        // scroll range maps onto, so an overshoot here would compress
+        // everything before it.
+        .to(t, { dotPulse: 1.25, duration: 0.04, ease: "sine.out" }, 0.92)
+        .to(t, { dotPulse: 1, duration: 0.04, ease: "sine.inOut" }, 0.96);
 
       // Roll runs the entire length of the journey at a constant rate, so the
       // mark is always turning even while a positional beat is easing out.
-      // Added last, at position 0, with the duration the moves already span —
-      // so it stretches across them without extending the timeline.
-      tl.to(t, { scrollSpin: SCROLL_SPIN_RAD, duration: tl.duration(), ease: "none" }, 0);
+      tl.to(t, { scrollSpin: SCROLL_SPIN_RAD, duration: 1, ease: "none" }, 0);
 
       // The choreography settles once early-access's bottom is reached — but
       // the canvases are fixed to the viewport, so without this the mark stays
@@ -279,6 +348,55 @@ export function Scene3DProvider({ children }: { children: ReactNode }) {
         tl.kill();
         fadeOut.scrollTrigger?.kill();
         fadeOut.kill();
+        gsap.set(t, { scrollSpin: 0, opacity: 1, visibility: 1 });
+      };
+    });
+
+    // Mid-width desktop: there is no gutter to travel in, so the mark does not
+    // travel. It stays centred in the hero, fades out as the content takes
+    // over, and fades back in over the signup card — the same narrative arc,
+    // minus the side trip it has no room for. Refusing to move here is what
+    // guarantees it never lands on a heading.
+    mm.add(CALM_QUERY, () => {
+      const t = target.current;
+      gsap.set(t, { x: 0, y: HERO_Y, scale: vhToScale(HERO_SCALE_VH), opacity: 1, visibility: 1 });
+
+      const out = gsap.to(t, {
+        opacity: 0,
+        scale: vhToScale(24),
+        ease: "sine.inOut",
+        scrollTrigger: { trigger: heroEl, start: "bottom 80%", end: "bottom 20%", scrub: 1.2 },
+      });
+
+      const back = gsap.fromTo(
+        t,
+        { opacity: 0, y: 0, scale: vhToScale(24) },
+        {
+          opacity: 0.5,
+          y: 0,
+          scale: vhToScale(30),
+          ease: "sine.out",
+          scrollTrigger: { trigger: earlyEl, start: "top bottom", end: "top 40%", scrub: 1.2 },
+        }
+      );
+
+      const spin = gsap.to(t, {
+        scrollSpin: SCROLL_SPIN_RAD,
+        ease: "none",
+        scrollTrigger: {
+          trigger: heroEl,
+          start: "top top",
+          endTrigger: earlyEl,
+          end: "bottom bottom",
+          scrub: 2,
+        },
+      });
+
+      return () => {
+        [out, back, spin].forEach((tween) => {
+          tween.scrollTrigger?.kill();
+          tween.kill();
+        });
         gsap.set(t, { scrollSpin: 0, opacity: 1, visibility: 1 });
       };
     });
@@ -346,17 +464,19 @@ function SceneCanvas({ layer, className }: { layer: MarkLayer; className: string
 }
 
 /**
- * The mark, rendered as up to two stacked canvases so page text can sit
- * *inside* it: the `back` canvas draws only what is farther from the camera
- * than the text plane (z = 0) and sits below the content, the `front` canvas
- * draws only what is nearer and sits above it. Together they composite into
- * one solid object with the DOM text threaded through its middle.
+ * The mark, rendered in ONE canvas that sits behind the page content.
+ *
+ * It used to be split across two stacked canvases — a `back` half below the
+ * content and a `front` half above it — so that text appeared threaded through
+ * the ring. That effect is gone on purpose: the front half meant the mark
+ * could paint over headings, which is exactly what made the page feel broken.
+ * A single layer at z-0 can never cover text, and it costs one WebGL context
+ * instead of two.
  */
 // The scroll-choreographed mark belongs to the landing page: its timeline
-// targets the landing sections, and on any other route (admin, login, project
-// pages) it would just park in hero pose with the front canvas (z-30) floating
-// over the content. So both layers render only on "/" — the admin layout
-// renders its own copy of the mark (Logo3D) behind its glass panels instead.
+// targets the landing sections, so on any other route (admin, login, project
+// pages) it would just sit parked in its hero pose. It renders only on "/" —
+// the admin layout has its own copy (Logo3D) behind its glass panels.
 function useMarkHidden() {
   const pathname = usePathname();
   return pathname !== "/";
@@ -364,14 +484,8 @@ function useMarkHidden() {
 
 export function Scene3DBack() {
   const hidden = useMarkHidden();
-  const split = useSyncExternalStore(subscribeDepth, getDepthSnapshot, getDepthServerSnapshot);
   if (hidden) return null;
-  return <SceneCanvas layer={split ? "back" : "full"} className="z-0" />;
-}
-
-export function Scene3DFront() {
-  const hidden = useMarkHidden();
-  const split = useSyncExternalStore(subscribeDepth, getDepthSnapshot, getDepthServerSnapshot);
-  if (hidden || !split) return null;
-  return <SceneCanvas layer="front" className="z-30" />;
+  // z-0 and rendered before the page content in the DOM, so every positioned
+  // section paints over it. This is what keeps the mark behind the text.
+  return <SceneCanvas layer="full" className="z-0" />;
 }

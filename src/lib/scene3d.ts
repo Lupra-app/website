@@ -38,6 +38,39 @@ export function vwToX(fraction: number) {
 }
 
 /**
+ * Pixel-space helpers.
+ *
+ * The mark used to be positioned with viewport FRACTIONS (vwToX), but the page
+ * content is a fixed max-width column centred in the viewport. A fraction that
+ * lands in the empty gutter on a 1920px screen lands directly on the text at
+ * 1200px — which is why the mark kept drifting into headings. Measuring the
+ * real content box in pixels and converting here removes the guesswork.
+ */
+
+/** World units per CSS pixel at the mark's resting depth. */
+export function worldPerPixel() {
+  const height = typeof window !== "undefined" ? window.innerHeight : 900;
+  return visibleHeightAtOrigin() / height;
+}
+
+/** Viewport X in CSS pixels (0 = left edge) to world X. */
+export function pxToWorldX(clientX: number) {
+  const width = typeof window !== "undefined" ? window.innerWidth : 1440;
+  return (clientX - width / 2) * worldPerPixel();
+}
+
+/** Viewport Y in CSS pixels (0 = top edge) to world Y. */
+export function pxToWorldY(clientY: number) {
+  const height = typeof window !== "undefined" ? window.innerHeight : 900;
+  return (height / 2 - clientY) * worldPerPixel();
+}
+
+/** Mesh scale that renders the mark at a given on-screen diameter in pixels. */
+export function pxDiameterToScale(diameterPx: number) {
+  return (diameterPx * worldPerPixel()) / RING_BASE_DIAMETER;
+}
+
+/**
  * The single source of truth for the mark's pose, shared by every canvas layer.
  *
  * Everything here is written by `Scene3DProvider` (GSAP timelines + one
