@@ -9,25 +9,39 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: "weekly",
       priority: 1,
     },
+    {
+      url: "https://lupra.app/blog",
+      lastModified: new Date(),
+      changeFrequency: "daily",
+      priority: 0.8,
+    },
   ];
 
-  // Yayınlanmış proje sayfaları (CMS). Supabase erişilemezse (ör. env'siz
-  // build) sitemap ana sayfayla sınırlı kalır — hata sitemap'i düşürmesin.
+  // Yayınlanmış proje ve blog sayfaları. Supabase erişilemezse (ör. env'siz
+  // build) sitemap temel sayfalarla sınırlı kalır — hata sitemap'i düşürmesin.
   try {
     const supabase = getSupabaseAdmin();
-    const { data } = await supabase
-      .from("projects")
-      .select("slug, updated_at")
-      .eq("status", "published");
 
-    const projects: MetadataRoute.Sitemap = (data ?? []).map((project) => ({
+    const [projects, posts] = await Promise.all([
+      supabase.from("projects").select("slug, updated_at").eq("status", "published"),
+      supabase.from("posts").select("slug, updated_at, published_at").eq("status", "published"),
+    ]);
+
+    const projectEntries: MetadataRoute.Sitemap = (projects.data ?? []).map((project) => ({
       url: `https://lupra.app/${project.slug}`,
       lastModified: new Date(project.updated_at),
       changeFrequency: "weekly",
       priority: 0.7,
     }));
 
-    return [...base, ...projects];
+    const postEntries: MetadataRoute.Sitemap = (posts.data ?? []).map((post) => ({
+      url: `https://lupra.app/blog/${post.slug}`,
+      lastModified: new Date(post.updated_at ?? post.published_at ?? Date.now()),
+      changeFrequency: "monthly",
+      priority: 0.6,
+    }));
+
+    return [...base, ...projectEntries, ...postEntries];
   } catch {
     return base;
   }
