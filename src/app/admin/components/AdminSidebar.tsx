@@ -8,6 +8,8 @@ import { Logo } from "@/components/Logo";
 const NAV_ITEMS = [
   { href: "/admin", label: "Kontrol Paneli", icon: "📊" },
   { href: "/admin/projects", label: "Projeler", icon: "📁" },
+  { href: "/admin/blog", label: "Blog", icon: "✍️" },
+  { href: "/admin/comments", label: "Yorumlar", icon: "💬" },
   { href: "/admin/early-access", label: "Erken Erişim", icon: "📧" },
   { href: "/admin/activity", label: "Aktivite", icon: "📜" },
   { href: "/admin/admins", label: "Yöneticiler", icon: "👤" },

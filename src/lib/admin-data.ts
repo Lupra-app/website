@@ -323,3 +323,169 @@ export async function listAdminUsers(): Promise<AdminUserRow[]> {
   if (error) fail("Yöneticiler", error);
   return data ?? [];
 }
+
+// ---------------------------------------------------------------------------
+// Blog (G6)
+// ---------------------------------------------------------------------------
+
+export type PostListRow = {
+  id: string;
+  slug: string;
+  title: string;
+  status: string;
+  cover_url: string | null;
+  tags: string[];
+  published_at: string | null;
+  updated_at: string;
+  comment_count?: number;
+};
+
+export type PostRow = PostListRow & {
+  excerpt: string | null;
+  blocks: Block[];
+  project_id: string | null;
+  reading_minutes: number | null;
+};
+
+export type CommentRow = {
+  id: string;
+  post_id: string;
+  author_name: string;
+  author_email: string | null;
+  body: string;
+  status: string;
+  country: string | null;
+  created_at: string;
+  reviewed_at: string | null;
+  reviewed_by: string | null;
+  posts: { slug: string; title: string } | null;
+};
+
+const POST_LIST_FIELDS =
+  "id, slug, title, status, cover_url, tags, published_at, updated_at";
+
+export async function listPosts(opts: {
+  page: number;
+  pageSize: number;
+  q?: string;
+  status?: string;
+}): Promise<Paged<PostListRow>> {
+  await requireAdmin();
+  const [from, to] = toRange(opts.page, opts.pageSize);
+
+  let query = getSupabaseAdmin()
+    .from("posts")
+    .select(POST_LIST_FIELDS, { count: "exact" })
+    .order("updated_at", { ascending: false })
+    .range(from, to);
+
+  if (opts.q) query = query.ilike("title", `%${escapeLike(opts.q)}%`);
+  if (opts.status === "draft" || opts.status === "published") {
+    query = query.eq("status", opts.status);
+  }
+
+  const { data, error, count } = await query;
+  if (error) fail("Yazılar", error);
+
+  const total = count ?? 0;
+  return {
+    rows: (data ?? []) as PostListRow[],
+    total,
+    page: opts.page,
+    pageSize: opts.pageSize,
+    pageCount: pageCount(total, opts.pageSize),
+  };
+}
+
+export async function getPostById(id: string): Promise<PostRow | null> {
+  await requireAdmin();
+  if (!UUID_RE.test(id)) return null;
+
+  const { data, error } = await getSupabaseAdmin()
+    .from("posts")
+    .select(`${POST_LIST_FIELDS}, excerpt, blocks, project_id, reading_minutes`)
+    .eq("id", id)
+    .maybeSingle();
+
+  if (error) fail("Yazı", error);
+  if (!data) return null;
+
+  const row = data as Record<string, unknown>;
+  return { ...(row as unknown as PostRow), blocks: parseBlocks(row.blocks) };
+}
+
+/** Yazı editöründeki "hangi projeye ait" seçicisi için. */
+export async function listProjectOptions(): Promise<{ id: string; title: string }[]> {
+  await requireAdmin();
+  const { data, error } = await getSupabaseAdmin()
+    .from("projects")
+    .select("id, title")
+    .order("title", { ascending: true });
+
+  if (error) fail("Projeler", error);
+  return data ?? [];
+}
+
+export async function listComments(opts: {
+  page: number;
+  pageSize: number;
+  status?: string;
+}): Promise<Paged<CommentRow>> {
+  await requireAdmin();
+  const [from, to] = toRange(opts.page, opts.pageSize);
+
+  let query = getSupabaseAdmin()
+    .from("comments")
+    .select(
+      "id, post_id, author_name, author_email, body, status, country, created_at, reviewed_at, reviewed_by, posts ( slug, title )",
+      { count: "exact" }
+    )
+    .order("created_at", { ascending: false })
+    .range(from, to);
+
+  if (opts.status === "pending" || opts.status === "approved" || opts.status === "spam") {
+    query = query.eq("status", opts.status);
+  }
+
+  const { data, error, count } = await query;
+  if (error) fail("Yorumlar", error);
+
+  const total = count ?? 0;
+  return {
+    rows: (data ?? []).map((row) => {
+      const rel = (row as Record<string, unknown>).posts;
+      return {
+        ...(row as unknown as CommentRow),
+        posts: Array.isArray(rel) ? (rel[0] ?? null) : ((rel as CommentRow["posts"]) ?? null),
+      };
+    }),
+    total,
+    page: opts.page,
+    pageSize: opts.pageSize,
+    pageCount: pageCount(total, opts.pageSize),
+  };
+}
+
+export async function getBlogStats() {
+  await requireAdmin();
+  const supabase = getSupabaseAdmin();
+
+  const [posts, published, pending, approved] = await Promise.all([
+    supabase.from("posts").select("id", { count: "exact" }).limit(1),
+    supabase.from("posts").select("id", { count: "exact" }).eq("status", "published").limit(1),
+    supabase.from("comments").select("id", { count: "exact" }).eq("status", "pending").limit(1),
+    supabase.from("comments").select("id", { count: "exact" }).eq("status", "approved").limit(1),
+  ]);
+
+  // Tablolar henüz oluşturulmamış olabilir; panelin geri kalanı çökmesin.
+  const missing = posts.error?.code === "PGRST205" || posts.error?.code === "42P01";
+  if (posts.error && !missing) fail("Blog özeti", posts.error);
+
+  return {
+    posts: posts.count ?? 0,
+    published: published.count ?? 0,
+    pendingComments: pending.count ?? 0,
+    approvedComments: approved.count ?? 0,
+    tablesMissing: missing,
+  };
+}

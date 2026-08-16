@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { requireAdmin } from "@/lib/dal";
-import { getDashboardStats } from "@/lib/admin-data";
+import { getBlogStats, getDashboardStats } from "@/lib/admin-data";
 import { formatDateTime } from "@/lib/format";
 
 export const metadata = {
@@ -9,7 +9,7 @@ export const metadata = {
 
 export default async function AdminPage() {
   await requireAdmin();
-  const stats = await getDashboardStats();
+  const [stats, blog] = await Promise.all([getDashboardStats(), getBlogStats()]);
 
   return (
     <div>
@@ -21,6 +21,18 @@ export default async function AdminPage() {
           Lupra admin paneline hoşgeldiniz. Tüm verileriniz burada.
         </p>
       </div>
+
+      {blog.tablesMissing && (
+        <div
+          role="alert"
+          className="mb-8 rounded-2xl border border-amber-400/30 bg-amber-500/10 px-5 py-4 text-sm text-amber-200"
+        >
+          <strong className="font-semibold">Blog tabloları henüz oluşturulmamış.</strong>{" "}
+          Supabase → SQL Editor&apos;da <code className="font-mono">supabase/schema.sql</code>{" "}
+          dosyasındaki <code className="font-mono">posts</code> ve{" "}
+          <code className="font-mono">comments</code> bölümünü çalıştır.
+        </div>
+      )}
 
       {stats.projectsTableMissing && (
         <div
@@ -61,6 +73,26 @@ export default async function AdminPage() {
           }
         />
         <StatCard
+          label="Blog Yazıları"
+          value={blog.posts}
+          href="/admin/blog"
+          icon="✍️"
+          color="indigo"
+          subtitle={`${blog.published} yayında`}
+        />
+        <StatCard
+          label="Yorumlar"
+          value={blog.pendingComments > 0 ? `${blog.pendingComments} bekliyor` : blog.approvedComments}
+          href="/admin/comments"
+          icon="💬"
+          color={blog.pendingComments > 0 ? "amber" : "purple"}
+          subtitle={
+            blog.pendingComments > 0
+              ? "Onaylanmadan görünmüyorlar"
+              : `${blog.approvedComments} onaylı yorum`
+          }
+        />
+        <StatCard
           label="Yöneticiler"
           value={stats.adminCount}
           href="/admin/admins"
@@ -78,6 +110,8 @@ const COLOR_STYLES = {
   purple: { border: "border-purple-400/30 hover:border-purple-400/60", tint: "from-purple-500/15" },
   indigo: { border: "border-indigo-400/30 hover:border-indigo-400/60", tint: "from-indigo-500/15" },
   emerald: { border: "border-emerald-400/30 hover:border-emerald-400/60", tint: "from-emerald-500/15" },
+  // Bekleyen yorum varsa kart dikkat çeksin diye.
+  amber: { border: "border-amber-400/40 hover:border-amber-400/70", tint: "from-amber-500/15" },
 } as const;
 
 function StatCard({

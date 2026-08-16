@@ -28,6 +28,10 @@ export const AUDIT_ACTIONS = {
   create_project: "Proje oluşturuldu",
   update_project: "Proje güncellendi",
   delete_project: "Proje silindi",
+  create_post: "Yazı oluşturuldu",
+  update_post: "Yazı güncellendi",
+  delete_post: "Yazı silindi",
+  moderate_comment: "Yorum denetlendi",
   add_admin: "Yönetici eklendi",
   remove_admin: "Yönetici çıkarıldı",
 } as const;
