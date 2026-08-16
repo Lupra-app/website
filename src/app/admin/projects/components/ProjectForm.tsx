@@ -105,17 +105,26 @@ export function ProjectForm({ project }: { project?: Project }) {
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-4">
-        <label className="flex items-center gap-3">
-          <span className="text-sm font-medium text-muted">Durum</span>
-          <select
-            name="status"
-            defaultValue={project?.status ?? "draft"}
-            className="rounded-lg border border-white/10 bg-bg-raised px-3 py-2 text-sm text-white transition-colors focus:border-accent focus:outline-none"
-          >
-            <option value="draft">Taslak</option>
-            <option value="published">Yayında</option>
-          </select>
-        </label>
+        <div>
+          <label className="flex items-center gap-3">
+            <span className="text-sm font-medium text-muted">Durum</span>
+            <select
+              name="status"
+              defaultValue={project?.status ?? "draft"}
+              className="rounded-lg border border-white/10 bg-bg-raised px-3 py-2 text-sm text-white transition-colors focus:border-accent focus:outline-none"
+            >
+              <option value="draft">Taslak</option>
+              <option value="published">Yayında</option>
+            </select>
+          </label>
+          {/* Taslakların siteye çıkmadığı hiçbir yerde yazmıyordu; yayına
+              alınmamış bir projenin adresine giren kişi sebebini anlamadan
+              404 görüyordu. */}
+          <p className="mt-2 text-xs text-muted/70">
+            Taslaklar sitede yayınlanmaz — adresleri 404 döner. Yayına almak için
+            &quot;Yayında&quot; seçip kaydet.
+          </p>
+        </div>
 
         <div className="flex items-center gap-3">
           <Link
