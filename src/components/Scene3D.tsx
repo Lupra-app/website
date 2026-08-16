@@ -20,6 +20,7 @@ import {
   pxToWorldX,
   pxToWorldY,
   pxDiameterToScale,
+  worldPerPixel,
   createSceneTarget,
   type SceneTarget,
 } from "@/lib/scene3d";
@@ -152,7 +153,7 @@ export function Scene3DProvider({ children }: { children: ReactNode }) {
     const mm = gsap.matchMedia();
 
     // ---------------------------------------------------------------------
-    // Layout probe. Everything below is measured from the real content box,
+    // Layout probe (defined before use by the branches below). Everything below is measured from the real content box,
     // never guessed, and re-measured on every ScrollTrigger refresh.
     //
     // The page is a fixed max-width column centred in the viewport, so the
@@ -168,6 +169,30 @@ export function Scene3DProvider({ children }: { children: ReactNode }) {
       const measured = contentEl?.getBoundingClientRect().width;
       return (measured && measured > 0 ? measured : Math.min(window.innerWidth - 40, 1024)) / 2;
     }
+
+    /**
+     * Hero scale that still clears the headline.
+     *
+     * HERO_SCALE_VH is a fraction of viewport HEIGHT, but the room reserved
+     * above the headline is a fixed pixel spacer — so on a phone the mark grew
+     * past its own spacer and sat behind the headline (measured: 51px of
+     * overlap at 375x812). Measuring the headline and fitting the mark above it
+     * self-corrects on any screen. Never scales UP past HERO_SCALE_VH; it only
+     * pulls the mark in when there isn't room.
+     */
+    // Arrow const, not a function declaration: declarations hoist above the
+    // null guard, so TypeScript can't see that heroEl is non-null inside one.
+    const heroFittedScale = () => {
+      const headline = heroEl.querySelector("h1");
+      const uncapped = (HERO_SCALE_VH / 100) * window.innerHeight;
+      if (!headline) return pxDiameterToScale(uncapped);
+
+      const headlineTop = headline.getBoundingClientRect().top + window.scrollY;
+      const centreY = window.innerHeight / 2 - HERO_Y / worldPerPixel();
+      const room = (headlineTop - centreY - EDGE_MARGIN) * 2;
+
+      return pxDiameterToScale(gsap.utils.clamp(150, uncapped, room));
+    };
 
     /**
      * The lane beside the content column, and how big the mark rides in it.
@@ -221,6 +246,11 @@ export function Scene3DProvider({ children }: { children: ReactNode }) {
     // gutter down the page beside the content, crosses to the other side, and
     // returns to centre over the signup card.
     //
+    // The mark's resting size is set here rather than in createSceneTarget:
+    // that runs before the DOM exists, so it can only use the raw
+    // HERO_SCALE_VH. Now that the headline can be measured, correct it.
+    gsap.set(target.current, { scale: heroFittedScale() });
+
     // The side trip only exists if there IS a gutter — see TRAVEL_QUERY.
     // Narrower screens get the calm version in the branch after this one.
     mm.add(TRAVEL_QUERY, () => {
@@ -369,7 +399,7 @@ export function Scene3DProvider({ children }: { children: ReactNode }) {
     // guarantees it never lands on a heading.
     mm.add(CALM_QUERY, () => {
       const t = target.current;
-      gsap.set(t, { x: 0, y: HERO_Y, scale: vhToScale(HERO_SCALE_VH), opacity: 1, visibility: 1 });
+      gsap.set(t, { x: 0, y: HERO_Y, scale: heroFittedScale(), opacity: 1, visibility: 1 });
 
       const out = gsap.to(t, {
         opacity: 0,
@@ -418,7 +448,7 @@ export function Scene3DProvider({ children }: { children: ReactNode }) {
       gsap.set(t, {
         x: 0,
         y: HERO_Y,
-        scale: vhToScale(HERO_SCALE_VH),
+        scale: heroFittedScale(),
         opacity: 1,
         visibility: 1,
         scrollSpin: 0,
