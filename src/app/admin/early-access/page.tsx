@@ -1,6 +1,5 @@
 import { requireAdmin } from "@/lib/dal";
 import { listEarlyAccess } from "@/lib/admin-data";
-import { logAdminAction } from "@/lib/audit-log";
 import { formatDateTime } from "@/lib/format";
 import { DEFAULT_PAGE_SIZE, parsePage, parseQuery } from "@/lib/pagination";
 import { Pagination } from "../components/Pagination";
@@ -16,7 +15,7 @@ export default async function EarlyAccessPage({
 }: {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
-  const session = await requireAdmin();
+  await requireAdmin();
   const sp = await searchParams;
   const page = parsePage(sp.page);
   const q = parseQuery(sp.q);
@@ -27,15 +26,12 @@ export default async function EarlyAccessPage({
     q: q || undefined,
   });
 
-  // Yalnızca ilk sayfada logla: her sayfa gezinmesinde kayıt atmak aktivite
-  // tablosunu kısa sürede gürültüye boğardı.
-  if (page === 1 && !q) {
-    await logAdminAction({
-      admin_email: session.email,
-      action: "view_early_access",
-      details: { total },
-    });
-  }
+  // Bu sayfanın görüntülenmesi KASITLI olarak loglanmıyor. Denendi ve geri
+  // alındı: yalnızca ilk sayfada loglamak bile aktivite tablosunun tamamını
+  // ele geçirdi (8 kaydın 8'i "liste görüntülendi"), gerçek işlemleri —
+  // giriş, proje düzenleme, CSV indirme — görünmez hâle getirdi. Ayrıca her
+  // sayfa render'ına bir veritabanı yazması ekliyordu. Aktivite kaydı
+  // eylemler içindir, ziyaretler için değil.
 
   return (
     <div>
