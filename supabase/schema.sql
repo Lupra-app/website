@@ -158,3 +158,76 @@ alter table projects add column if not exists cover_url text;
 insert into storage.buckets (id, name, public, file_size_limit)
 values ('project-media', 'project-media', true, 52428800)
 on conflict (id) do update set public = true, file_size_limit = 52428800;
+
+-- ---------------------------------------------------------------------------
+-- Blog (G6): yazılar + ziyaretçi yorumları
+--
+-- Yazılar projelerle aynı blok sistemini kullanıyor (blocks JSONB), ama ayrı
+-- tabloda: yazının yayın tarihi, okuma süresi, etiketleri ve yorumları var,
+-- projenin yok. İkisini tek tabloya sıkıştırmak her iki kavramı da bulanık
+-- hâle getirirdi.
+-- ---------------------------------------------------------------------------
+create table if not exists posts (
+  id uuid primary key default gen_random_uuid(),
+  slug text not null unique,
+  title text not null,
+  excerpt text,                                  -- TL;DR + meta description
+  cover_url text,
+  blocks jsonb not null default '[]'::jsonb,
+  tags text[] not null default '{}',
+  project_id uuid references projects(id) on delete set null,
+  status text not null default 'draft',
+  published_at timestamptz,
+  reading_minutes int,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+do $$
+begin
+  if not exists (select 1 from pg_constraint where conname = 'posts_status_check') then
+    alter table posts add constraint posts_status_check
+      check (status in ('draft', 'published'));
+  end if;
+end $$;
+
+alter table posts enable row level security;
+
+create index if not exists idx_posts_status_published_at
+  on posts(status, published_at desc);
+
+-- Ziyaretçi yorumları.
+--
+-- Girişsiz yorum kaçınılmaz olarak spam çeker, bu yüzden her yorum 'pending'
+-- olarak düşer ve panelden onaylanmadan sitede GÖRÜNMEZ.
+--
+-- author_email isteğe bağlı ve hiçbir zaman yayınlanmaz — yalnızca panelde,
+-- yoruma geri dönebilmek için. IP saklanmıyor; erken erişimdeki kararla aynı
+-- şekilde yalnızca ülke kodu tutuluyor.
+create table if not exists comments (
+  id uuid primary key default gen_random_uuid(),
+  post_id uuid not null references posts(id) on delete cascade,
+  author_name text not null,
+  author_email text,
+  body text not null,
+  status text not null default 'pending',
+  country text,
+  created_at timestamptz not null default now(),
+  reviewed_at timestamptz,
+  reviewed_by text
+);
+
+do $$
+begin
+  if not exists (select 1 from pg_constraint where conname = 'comments_status_check') then
+    alter table comments add constraint comments_status_check
+      check (status in ('pending', 'approved', 'spam'));
+  end if;
+end $$;
+
+alter table comments enable row level security;
+
+create index if not exists idx_comments_post_status
+  on comments(post_id, status, created_at desc);
+create index if not exists idx_comments_status_created
+  on comments(status, created_at desc);

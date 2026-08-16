@@ -230,6 +230,81 @@ function BlockFields({
   onChange: (patch: Partial<Block>) => void;
 }) {
   switch (block.type) {
+    case "tldr":
+      return (
+        <Field label="Özet — ilk 40-60 kelimede doğrudan cevabı ver, giriş yapma">
+          <textarea
+            rows={3}
+            value={block.text}
+            onChange={(e) => onChange({ text: e.target.value } as Partial<Block>)}
+            placeholder="Emlak ofisleri WhatsApp'tan gelen talepleri elle takip ettiği için gelenlerin yarısı kayboluyor. Lupra bu talepleri otomatik yakalıyor, saniyeler içinde ilk dönüşü yapıyor ve hepsini tek listede topluyor."
+            className={`${inputClass} resize-y leading-relaxed`}
+          />
+        </Field>
+      );
+
+    case "table":
+      return (
+        <TableFields block={block} onChange={onChange} />
+      );
+
+    case "faq":
+      return (
+        <div className="space-y-3">
+          {block.items.map((item, i) => (
+            <div key={i} className="rounded-lg border border-white/10 bg-white/5 p-3">
+              <div className="mb-2 flex items-start gap-2">
+                <input
+                  value={item.question}
+                  onChange={(e) => {
+                    const items = [...block.items];
+                    items[i] = { ...items[i], question: e.target.value };
+                    onChange({ items } as Partial<Block>);
+                  }}
+                  placeholder="Soru"
+                  className={`${inputClass} flex-1 font-medium`}
+                />
+                <button
+                  type="button"
+                  onClick={() =>
+                    onChange({ items: block.items.filter((_, j) => j !== i) } as Partial<Block>)
+                  }
+                  className="rounded-lg border border-red-500/30 bg-red-500/10 px-2 py-1 text-xs text-red-300"
+                >
+                  ✕
+                </button>
+              </div>
+              <textarea
+                rows={2}
+                value={item.answer}
+                onChange={(e) => {
+                  const items = [...block.items];
+                  items[i] = { ...items[i], answer: e.target.value };
+                  onChange({ items } as Partial<Block>);
+                }}
+                placeholder="Cevap (markdown) — tek başına anlaşılır olsun"
+                className={`${inputClass} resize-y`}
+              />
+            </div>
+          ))}
+          <button
+            type="button"
+            onClick={() =>
+              onChange({
+                items: [...block.items, { question: "", answer: "" }],
+              } as Partial<Block>)
+            }
+            className="rounded-lg border border-white/15 bg-white/5 px-3 py-1.5 text-xs text-muted transition-colors hover:text-white"
+          >
+            + Soru ekle
+          </button>
+          <p className="text-xs text-muted/60">
+            Bu blok sayfaya FAQPage yapılandırılmış verisi de ekler — arama motorları
+            ve yapay zeka cevapları için.
+          </p>
+        </div>
+      );
+
     case "text":
       return (
         <Field label="Metin (markdown)">
@@ -530,6 +605,137 @@ function BlockFields({
         </div>
       );
   }
+}
+
+/** Tablo bloğu: sütun/satır ekleme-çıkarma mantığı uzun, ayrı bileşende. */
+function TableFields({
+  block,
+  onChange,
+}: {
+  block: Extract<Block, { type: "table" }>;
+  onChange: (patch: Partial<Block>) => void;
+}) {
+  const setCell = (rowIndex: number, colIndex: number, value: string) => {
+    const rows = block.rows.map((row, r) =>
+      r === rowIndex ? row.map((cell, c) => (c === colIndex ? value : cell)) : row
+    );
+    onChange({ rows } as Partial<Block>);
+  };
+
+  const addColumn = () => {
+    if (block.headers.length >= 6) return;
+    onChange({
+      headers: [...block.headers, ""],
+      rows: block.rows.map((r) => [...r, ""]),
+    } as Partial<Block>);
+  };
+
+  const removeColumn = (index: number) => {
+    if (block.headers.length <= 1) return;
+    onChange({
+      headers: block.headers.filter((_, i) => i !== index),
+      rows: block.rows.map((r) => r.filter((_, i) => i !== index)),
+    } as Partial<Block>);
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-lg border-separate border-spacing-1">
+          <thead>
+            <tr>
+              {block.headers.map((header, c) => (
+                <th key={c} className="align-top">
+                  <div className="flex items-center gap-1">
+                    <input
+                      value={header}
+                      onChange={(e) => {
+                        const headers = [...block.headers];
+                        headers[c] = e.target.value;
+                        onChange({ headers } as Partial<Block>);
+                      }}
+                      placeholder={`Sütun ${c + 1}`}
+                      className={`${inputClass} font-semibold`}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removeColumn(c)}
+                      disabled={block.headers.length <= 1}
+                      aria-label={`${c + 1}. sütunu sil`}
+                      className="rounded border border-white/10 px-1.5 py-1 text-xs text-muted disabled:opacity-30"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {block.rows.map((row, r) => (
+              <tr key={r}>
+                {row.map((cell, c) => (
+                  <td key={c}>
+                    <div className="flex items-center gap-1">
+                      <input
+                        value={cell}
+                        onChange={(e) => setCell(r, c, e.target.value)}
+                        className={inputClass}
+                      />
+                      {c === row.length - 1 && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            onChange({
+                              rows: block.rows.filter((_, i) => i !== r),
+                            } as Partial<Block>)
+                          }
+                          disabled={block.rows.length <= 1}
+                          aria-label={`${r + 1}. satırı sil`}
+                          className="rounded border border-white/10 px-1.5 py-1 text-xs text-muted disabled:opacity-30"
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </div>
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="flex flex-wrap gap-2">
+        <button
+          type="button"
+          onClick={() =>
+            onChange({ rows: [...block.rows, block.headers.map(() => "")] } as Partial<Block>)
+          }
+          disabled={block.rows.length >= 30}
+          className="rounded-lg border border-white/15 bg-white/5 px-3 py-1.5 text-xs text-muted transition-colors hover:text-white disabled:opacity-40"
+        >
+          + Satır
+        </button>
+        <button
+          type="button"
+          onClick={addColumn}
+          disabled={block.headers.length >= 6}
+          className="rounded-lg border border-white/15 bg-white/5 px-3 py-1.5 text-xs text-muted transition-colors hover:text-white disabled:opacity-40"
+        >
+          + Sütun
+        </button>
+      </div>
+
+      <Field label="Tablo alt yazısı (opsiyonel)">
+        <input
+          value={block.caption}
+          onChange={(e) => onChange({ caption: e.target.value } as Partial<Block>)}
+          className={inputClass}
+        />
+      </Field>
+    </div>
+  );
 }
 
 export { newBlockId };

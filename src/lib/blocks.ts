@@ -12,7 +12,10 @@
  */
 
 export const BLOCK_TYPES = [
+  "tldr",
   "text",
+  "table",
+  "faq",
   "image",
   "gallery",
   "video",
@@ -28,6 +31,9 @@ export type BlockType = (typeof BLOCK_TYPES)[number];
 export type BlockWidth = "normal" | "wide" | "full";
 
 export const BLOCK_LABELS: Record<BlockType, string> = {
+  tldr: "Özet (TL;DR)",
+  table: "Karşılaştırma tablosu",
+  faq: "Sıkça sorulanlar",
   text: "Metin",
   image: "Görsel",
   gallery: "Galeri",
@@ -39,6 +45,9 @@ export const BLOCK_LABELS: Record<BlockType, string> = {
 };
 
 export const BLOCK_ICONS: Record<BlockType, string> = {
+  tldr: "⚡",
+  table: "📊",
+  faq: "❓",
   text: "📝",
   image: "🖼️",
   gallery: "🎞️",
@@ -51,7 +60,22 @@ export const BLOCK_ICONS: Record<BlockType, string> = {
 
 export type MediaItem = { url: string; alt: string; caption: string };
 
+export type FaqItem = { question: string; answer: string };
+
 export type Block =
+  /**
+   * Answer-first özet. Yazının ilk 40-60 kelimesinin doğrudan cevabı vermesi
+   * gerekiyor (GEO rehberi 5.1/2) — LLM'ler pasajı bağlamdan kopuk okuduğu
+   * için "giriş yaparak ısınan" metin alıntılanmıyor.
+   */
+  | { id: string; type: "tldr"; text: string }
+  /**
+   * Karşılaştırma tablosu. Tablo + yapılandırılmış veri içeren içerik,
+   * yapılandırılmamışa göre 2.5 kat daha fazla alıntılanıyor (GEO 5.3).
+   */
+  | { id: string; type: "table"; caption: string; headers: string[]; rows: string[][] }
+  /** Tam render edilen FAQ; sayfaya FAQPage JSON-LD'si de bundan üretiliyor. */
+  | { id: string; type: "faq"; items: FaqItem[] }
   | { id: string; type: "text"; markdown: string }
   | { id: string; type: "image"; url: string; alt: string; caption: string; width: BlockWidth }
   | { id: string; type: "gallery"; items: MediaItem[]; columns: 2 | 3 }
@@ -74,6 +98,8 @@ const MAX_MARKDOWN = 20_000;
 const MAX_SHORT_TEXT = 300;
 const MAX_URL = 1_000;
 const MAX_LIST_ITEMS = 16;
+const MAX_TABLE_COLS = 6;
+const MAX_TABLE_ROWS = 30;
 
 const WIDTHS: BlockWidth[] = ["normal", "wide", "full"];
 
@@ -140,6 +166,12 @@ export function newBlockId(): string {
 export function emptyBlock(type: BlockType): Block {
   const id = newBlockId();
   switch (type) {
+    case "tldr":
+      return { id, type, text: "" };
+    case "table":
+      return { id, type, caption: "", headers: ["", ""], rows: [["", ""]] };
+    case "faq":
+      return { id, type, items: [{ question: "", answer: "" }] };
     case "text":
       return { id, type, markdown: "" };
     case "image":
@@ -162,6 +194,15 @@ export function emptyBlock(type: BlockType): Block {
 /** Blok gövdesi boş mu? Boş bloklar kaydedilirken atılır. */
 function isEmpty(block: Block): boolean {
   switch (block.type) {
+    case "tldr":
+      return !block.text.trim();
+    case "table":
+      return (
+        block.headers.every((h) => !h.trim()) &&
+        block.rows.every((r) => r.every((c) => !c.trim()))
+      );
+    case "faq":
+      return block.items.every((i) => !i.question.trim() && !i.answer.trim());
     case "text":
       return !block.markdown.trim();
     case "image":
@@ -187,6 +228,43 @@ function parseOne(raw: unknown): Block | null {
   const id = str(record.id, 64) || newBlockId();
 
   switch (type as BlockType) {
+    case "tldr":
+      return { id, type: "tldr", text: str(record.text, MAX_SHORT_TEXT * 4) };
+
+    case "table": {
+      const headers = (Array.isArray(record.headers) ? record.headers : [])
+        .slice(0, MAX_TABLE_COLS)
+        .map((h) => str(h, MAX_SHORT_TEXT));
+      // Her satır başlık sayısına sabitleniyor: eksik hücreler boşla
+      // tamamlanıyor, fazlası atılıyor. Aksi hâlde bozuk bir JSON düzensiz
+      // sütunlu bir tablo üretebilirdi.
+      const rows = (Array.isArray(record.rows) ? record.rows : [])
+        .slice(0, MAX_TABLE_ROWS)
+        .map((row) => {
+          const cells = Array.isArray(row) ? row : [];
+          return Array.from({ length: headers.length }, (_, i) =>
+            str(cells[i], MAX_SHORT_TEXT)
+          );
+        });
+      return { id, type: "table", caption: str(record.caption, MAX_SHORT_TEXT), headers, rows };
+    }
+
+    case "faq":
+      return {
+        id,
+        type: "faq",
+        items: (Array.isArray(record.items) ? record.items : [])
+          .slice(0, MAX_LIST_ITEMS)
+          .map((item) => {
+            const entry = (item ?? {}) as Record<string, unknown>;
+            return {
+              question: str(entry.question, MAX_SHORT_TEXT),
+              answer: str(entry.answer, MAX_MARKDOWN),
+            };
+          })
+          .filter((i) => i.question || i.answer),
+      };
+
     case "text":
       return { id, type: "text", markdown: str(record.markdown, MAX_MARKDOWN) };
 
@@ -287,11 +365,51 @@ export function parseBlocks(input: unknown): Block[] {
     .filter((block): block is Block => block !== null && !isEmpty(block));
 }
 
+/** Yazıdaki tüm FAQ maddeleri — FAQPage JSON-LD'si buradan üretiliyor. */
+export function collectFaqItems(blocks: Block[]): FaqItem[] {
+  return blocks
+    .filter((b): b is Extract<Block, { type: "faq" }> => b.type === "faq")
+    .flatMap((b) => b.items)
+    .filter((i) => i.question.trim() && i.answer.trim());
+}
+
+/**
+ * Kaba okuma süresi. Türkçe için dakikada ~200 kelime; tablo ve SSS
+ * içerikleri de sayıya dahil çünkü okunuyorlar.
+ */
+export function readingMinutes(blocks: Block[]): number {
+  let words = 0;
+  for (const block of blocks) {
+    const text =
+      block.type === "text"
+        ? block.markdown
+        : block.type === "tldr"
+          ? block.text
+          : block.type === "quote"
+            ? block.text
+            : block.type === "faq"
+              ? block.items.map((i) => `${i.question} ${i.answer}`).join(" ")
+              : block.type === "table"
+                ? [...block.headers, ...block.rows.flat()].join(" ")
+                : block.type === "features"
+                  ? block.items.map((i) => `${i.title} ${i.description}`).join(" ")
+                  : "";
+    words += text.split(/\s+/).filter(Boolean).length;
+  }
+  return Math.max(1, Math.round(words / 200));
+}
+
 /** Blokların düz metin özeti — SEO açıklaması boşsa kullanılır. */
 export function blocksToPlainText(blocks: Block[], maxLength = 200): string {
   for (const block of blocks) {
     const text =
-      block.type === "text" ? block.markdown : block.type === "quote" ? block.text : "";
+      block.type === "tldr"
+        ? block.text
+        : block.type === "text"
+          ? block.markdown
+          : block.type === "quote"
+            ? block.text
+            : "";
     const clean = text
       .replace(/[#*_>`[\]()]/g, "")
       .replace(/\s+/g, " ")

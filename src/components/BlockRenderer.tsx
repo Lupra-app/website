@@ -37,6 +37,75 @@ function Figure({
 
 function BlockView({ block }: { block: Block }) {
   switch (block.type) {
+    case "tldr":
+      return (
+        <div className="mx-auto max-w-3xl px-6">
+          <div className="rounded-2xl border border-accent/30 bg-accent/10 p-6">
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-accent-light">
+              Kısaca
+            </p>
+            <p className="text-lg leading-relaxed text-white">{block.text}</p>
+          </div>
+        </div>
+      );
+
+    case "table":
+      return (
+        <div className="mx-auto max-w-5xl px-6">
+          {/* Tablo kendi içinde kayar; sayfanın yatay kaymasına izin verilmiyor. */}
+          <div className="overflow-x-auto rounded-2xl border border-white/10">
+            <table className="w-full min-w-[32rem] text-left text-sm">
+              <thead>
+                <tr className="border-b border-white/15 bg-white/5">
+                  {block.headers.map((header, i) => (
+                    <th key={i} scope="col" className="px-5 py-3 font-semibold text-white">
+                      {header}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {block.rows.map((row, i) => (
+                  <tr key={i} className="border-b border-white/5 last:border-0">
+                    {row.map((cell, j) => (
+                      <td
+                        key={j}
+                        className={j === 0 ? "px-5 py-3 font-medium text-white" : "px-5 py-3 text-muted"}
+                      >
+                        {cell}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {block.caption && (
+            <p className="mt-3 text-center text-sm text-muted">{block.caption}</p>
+          )}
+        </div>
+      );
+
+    case "faq":
+      return (
+        <div className="mx-auto max-w-3xl px-6">
+          <div className="space-y-3">
+            {block.items.map((item, i) => (
+              // <details> yerine her zaman açık: GEO rehberi "tam render
+              // edilmiş FAQ" istiyor — gizli metin alıntılanmıyor.
+              <div key={i} className="rounded-2xl border border-white/10 bg-white/5 p-5">
+                <h3 className="font-heading text-base font-semibold text-white">
+                  {item.question}
+                </h3>
+                <div className="prose-lupra mt-2 text-sm">
+                  <ReactMarkdown>{item.answer}</ReactMarkdown>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+
     case "text":
       return (
         <div className="mx-auto max-w-3xl px-6">
