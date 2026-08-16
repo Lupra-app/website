@@ -84,6 +84,31 @@ There is no test suite configured.
   are blocked both in the action and by a database trigger.
 - **Dates** always go through `src/lib/format.ts` (`Europe/Istanbul`). Bare `toLocaleDateString`
   uses the server's zone — correct locally, three hours off on Vercel.
+
+## Content system (projects + blog)
+
+- **One block model, two content types.** `src/lib/blocks.ts` defines every block type; both
+  `projects.blocks` and `posts.blocks` are JSONB arrays of it, edited with the same `BlockEditor`
+  and rendered by the same `BlockRenderer`. Adding a block type lights it up in both places.
+  `parseBlocks()` is the **security boundary** — blocks arrive as client-authored JSON in a hidden
+  input, so it rebuilds them from a whitelist (unknown fields dropped, lengths clamped, URL schemes
+  checked). Never trust a block field that did not come through it.
+- **Three block types exist for machine readers, not humans**: `tldr` (answer-first, because LLMs
+  read a passage out of context), `table` (structured comparisons get cited far more often), and
+  `faq` (rendered in full *and* emitted as FAQPage JSON-LD). They come straight from the SEO/GEO
+  research in `Umut/Brain/wiki/seo/`. Don't "simplify" them into plain text.
+- **Public blog reads live in `src/lib/blog-data.ts`, not `admin-data.ts`.** The two files have
+  opposite contracts: every `admin-data.ts` function starts with `requireAdmin()`, every
+  `blog-data.ts` function is unauthenticated and must therefore filter `status = 'published'`
+  itself. Keeping them apart is what stops one rule leaking into the other.
+- **Comments are moderated by default.** Anonymous comments attract spam, so `/api/comments`
+  always writes `status = 'pending'`, and only `approved` rows are ever rendered. Visitor text is
+  printed as plain text on both the public page and in the admin queue — never as markdown or HTML.
+- **Signup/comment context stores no IP.** Only a country code from Vercel's `x-vercel-ip-country`
+  header, and device/browser/OS *derived* from the user agent (the raw string is discarded — it is
+  fingerprint-grade). Rate limiting uses the IP in memory but never persists it.
+- **`published_at` is written once**, on first publish. Later edits must not push it forward or
+  every correction would re-date the post.
 - Copy is Turkish throughout; keep new user-facing strings consistent with that (see the existing
   section components for tone/terminology).
 
