@@ -2,6 +2,7 @@
 
 import { useRef, useState, type FormEvent } from "react";
 import { gsap, useGSAP, prefersReducedMotion } from "@/lib/gsap";
+import { captureAttribution, readAttribution } from "@/lib/attribution";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -28,10 +29,13 @@ export function EarlyAccess() {
     setSubmitting(true);
     setError(null);
     try {
+      // Nereden geldiği ilk açılışta yakalandı; burada sadece okunuyor.
+      // Cihaz, tarayıcı ve ülke sunucuda istek başlıklarından türetiliyor —
+      // istemciye güvenilerek gönderilmiyor.
       const res = await fetch("/api/early-access", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: trimmed }),
+        body: JSON.stringify({ email: trimmed, attribution: readAttribution() }),
       });
       if (!res.ok) throw new Error("request_failed");
 
@@ -43,6 +47,13 @@ export function EarlyAccess() {
       setSubmitting(false);
     }
   };
+
+  // Formun kendisinden önce çalışması gerekiyor: adres çubuğundaki kampanya
+  // etiketleri ve dış referrer, ziyaretçi sayfada gezinmeye başlamadan
+  // yakalanmalı.
+  useGSAP(() => {
+    captureAttribution();
+  }, []);
 
   useGSAP(
     () => {

@@ -29,7 +29,28 @@ export type Paged<T> = {
   pageCount: number;
 };
 
-export type EarlyAccessRow = { id: string; email: string; created_at: string };
+export type EarlyAccessStatus = "new" | "invited" | "joined";
+
+export type EarlyAccessRow = {
+  id: string;
+  email: string;
+  created_at: string;
+  source_referrer: string | null;
+  utm_source: string | null;
+  utm_medium: string | null;
+  utm_campaign: string | null;
+  device_type: string | null;
+  browser: string | null;
+  os: string | null;
+  language: string | null;
+  country: string | null;
+  status: string;
+  note: string | null;
+  status_updated_at: string | null;
+};
+
+const EARLY_ACCESS_FIELDS =
+  "id, email, created_at, source_referrer, utm_source, utm_medium, utm_campaign, device_type, browser, os, language, country, status, note, status_updated_at";
 export type AuditLogRow = {
   id: string;
   admin_email: string;
@@ -113,17 +134,21 @@ export async function listEarlyAccess(opts: {
   page: number;
   pageSize: number;
   q?: string;
+  status?: string;
 }): Promise<Paged<EarlyAccessRow>> {
   await requireAdmin();
   const [from, to] = toRange(opts.page, opts.pageSize);
 
   let query = getSupabaseAdmin()
     .from("early_access")
-    .select("id, email, created_at", { count: "exact" })
+    .select(EARLY_ACCESS_FIELDS, { count: "exact" })
     .order("created_at", { ascending: false })
     .range(from, to);
 
   if (opts.q) query = query.ilike("email", `%${escapeLike(opts.q)}%`);
+  if (opts.status === "new" || opts.status === "invited" || opts.status === "joined") {
+    query = query.eq("status", opts.status);
+  }
 
   const { data, error, count } = await query;
   if (error) fail("Erken erişim kayıtları", error);

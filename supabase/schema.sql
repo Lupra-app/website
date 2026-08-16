@@ -12,6 +12,46 @@ create table if not exists early_access (
 -- Panel (G3-4) aynı service-role key üzerinden okuyacak.
 alter table early_access enable row level security;
 
+-- ---------------------------------------------------------------------------
+-- Kayıt bağlamı: ziyaretçi nereden geldi, neyle geldi.
+--
+-- IP ADRESİ KASITLI OLARAK SAKLANMIYOR. Sadece ülke kodu tutuluyor ve o da
+-- Vercel'in isteğe eklediği x-vercel-ip-country başlığından geliyor; ham IP
+-- hiçbir yere yazılmıyor. Ülke kodu tek başına bir kişiyi işaret etmediği
+-- için KVKK kapsamında kişisel veri saklama yükümlülüğü doğurmuyor.
+--
+-- Cihaz/tarayıcı/işletim sistemi user-agent'tan TÜRETİLİYOR; ham user-agent
+-- string'i de saklanmıyor (parmak izi çıkarmaya yarayacak kadar ayırt edici).
+-- ---------------------------------------------------------------------------
+alter table early_access add column if not exists source_referrer text;
+alter table early_access add column if not exists utm_source text;
+alter table early_access add column if not exists utm_medium text;
+alter table early_access add column if not exists utm_campaign text;
+alter table early_access add column if not exists device_type text;  -- mobile | tablet | desktop
+alter table early_access add column if not exists browser text;
+alter table early_access add column if not exists os text;
+alter table early_access add column if not exists language text;     -- tr, en, de...
+alter table early_access add column if not exists country text;      -- TR, DE... (Vercel başlığı)
+
+-- Davet akışı: erken erişim dalga dalga açılırken kimin nerede olduğunu
+-- panelden takip etmek için.
+alter table early_access add column if not exists status text not null default 'new';
+alter table early_access add column if not exists note text;
+alter table early_access add column if not exists status_updated_at timestamptz;
+
+do $$
+begin
+  if not exists (
+    select 1 from pg_constraint where conname = 'early_access_status_check'
+  ) then
+    alter table early_access add constraint early_access_status_check
+      check (status in ('new', 'invited', 'joined'));
+  end if;
+end $$;
+
+create index if not exists idx_early_access_status_created_at
+  on early_access(status, created_at desc);
+
 -- Admin kullanıcıları: Google OAuth üzerinden giren kişilerin
 -- /admin'e erişimini kontrol etmek için. Email adresi unique.
 create table if not exists admin_users (
