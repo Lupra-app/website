@@ -5,10 +5,10 @@ import { getSupabaseAdmin } from "@/lib/supabase-admin";
 import { requireAdmin } from "@/lib/dal";
 import { logAdminAction } from "@/lib/audit-log";
 import { isValidEmail, normalizeEmail } from "@/lib/validation";
+import type { AdminFormState } from "./form-state";
 
-export type AdminFormState = { error: string | null; success: string | null };
-
-export const EMPTY_ADMIN_STATE: AdminFormState = { error: null, success: null };
+// Durum tipi ve başlangıç değeri ./form-state içinde: bu dosya "use server"
+// olduğu için buradan yalnızca async fonksiyon export edilebilir.
 
 function refresh() {
   revalidatePath("/admin/admins");

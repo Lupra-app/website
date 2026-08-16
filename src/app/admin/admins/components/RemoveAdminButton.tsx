@@ -1,14 +1,8 @@
 "use client";
 
 import { useActionState } from "react";
-import { removeAdmin, EMPTY_ADMIN_STATE } from "../actions";
-
-const ERROR_MESSAGES: Record<string, string> = {
-  cannot_remove_self: "Kendini yöneticilikten çıkaramazsın.",
-  last_admin: "En az bir yönetici kalmalı.",
-  not_found: "Bu yönetici zaten çıkarılmış.",
-  server_error: "Çıkarılamadı, tekrar dene.",
-};
+import { removeAdmin } from "../actions";
+import { EMPTY_ADMIN_STATE, REMOVE_ADMIN_ERRORS as ERROR_MESSAGES } from "../form-state";
 
 export function RemoveAdminButton({
   email,

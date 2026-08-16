@@ -2,21 +2,11 @@
 
 import { useActionState, useState } from "react";
 import Link from "next/link";
-import { saveProject, EMPTY_PROJECT_STATE } from "../actions";
+import { saveProject } from "../actions";
+import { EMPTY_PROJECT_STATE, PROJECT_ERROR_MESSAGES } from "../form-state";
 import type { Block } from "@/lib/blocks";
 import { BlockEditor } from "./BlockEditor";
 import { MediaUploader } from "./MediaUploader";
-
-const ERROR_MESSAGES: Record<string, string> = {
-  invalid_title: "Başlık boş olamaz (en fazla 140 karakter).",
-  invalid_slug: "Slug yalnızca küçük harf, rakam ve tire içerebilir (ör. whatsapp-agent).",
-  reserved_slug: "Bu slug sistem tarafından kullanılıyor, başka bir tane seç.",
-  slug_taken: "Bu slug'a sahip bir proje zaten var.",
-  invalid_summary: "Özet en fazla 300 karakter olabilir.",
-  content_too_long: "İçerik çok uzun (100.000 karakter sınırı).",
-  not_found: "Bu proje bulunamadı — başka bir sekmede silinmiş olabilir.",
-  server_error: "Sunucu hatası — kayıt yapılamadı, tekrar dene.",
-};
 
 type Project = {
   id: string;
@@ -33,7 +23,9 @@ export function ProjectForm({ project }: { project?: Project }) {
   const [state, formAction, pending] = useActionState(saveProject, EMPTY_PROJECT_STATE);
   const [coverUrl, setCoverUrl] = useState(project?.cover_url ?? "");
   const isEdit = Boolean(project);
-  const message = state.error ? (ERROR_MESSAGES[state.error] ?? ERROR_MESSAGES.server_error) : null;
+  const message = state.error
+    ? (PROJECT_ERROR_MESSAGES[state.error] ?? PROJECT_ERROR_MESSAGES.server_error)
+    : null;
 
   // NOT: input'lar kasıtlı olarak uncontrolled (defaultValue) ve forma değişen
   // bir key prop'u verilmiyor. Hata durumunda bileşen remount olmadığı için

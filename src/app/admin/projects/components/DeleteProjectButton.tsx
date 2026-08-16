@@ -1,7 +1,8 @@
 "use client";
 
 import { useActionState } from "react";
-import { deleteProject, EMPTY_PROJECT_STATE } from "../actions";
+import { deleteProject } from "../actions";
+import { EMPTY_PROJECT_STATE } from "../form-state";
 
 // Silme geri alınamaz; confirm() bir güvenlik katmanı değil, yanlış tıklama
 // sigortası. Yetki kontrolü her hâlükârda action içinde yapılıyor.

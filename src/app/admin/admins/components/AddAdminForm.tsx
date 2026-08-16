@@ -1,13 +1,8 @@
 "use client";
 
 import { useActionState } from "react";
-import { addAdmin, EMPTY_ADMIN_STATE } from "../actions";
-
-const ERROR_MESSAGES: Record<string, string> = {
-  invalid_email: "Geçerli bir e-posta adresi gir.",
-  already_exists: "Bu e-posta zaten yönetici listesinde.",
-  server_error: "Eklenemedi, tekrar dene.",
-};
+import { addAdmin } from "../actions";
+import { ADD_ADMIN_ERRORS as ERROR_MESSAGES, EMPTY_ADMIN_STATE } from "../form-state";
 
 export function AddAdminForm() {
   const [state, formAction, pending] = useActionState(addAdmin, EMPTY_ADMIN_STATE);

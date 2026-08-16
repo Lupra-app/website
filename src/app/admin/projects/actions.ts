@@ -7,6 +7,7 @@ import { requireAdmin } from "@/lib/dal";
 import { logAdminAction } from "@/lib/audit-log";
 import { SLUG_RE, UUID_RE } from "@/lib/validation";
 import { parseBlocks, type Block } from "@/lib/blocks";
+import type { ProjectFormState } from "./form-state";
 
 /**
  * Hata durumunda REDIRECT ETMİYORUZ, state döndürüyoruz.
@@ -16,10 +17,10 @@ import { parseBlocks, type Block } from "@/lib/blocks";
  * her şey (100.000 karaktere kadar markdown) siliniyordu. useActionState ile
  * hatada navigasyon olmaz, client component mount'ta kalır ve uncontrolled
  * input'ların DOM değerleri hiç kaybolmaz.
+ *
+ * Durum tipi ve başlangıç değeri ./form-state içinde: bu dosya "use server"
+ * olduğu için buradan yalnızca async fonksiyon export edilebilir.
  */
-export type ProjectFormState = { error: string | null };
-
-export const EMPTY_PROJECT_STATE: ProjectFormState = { error: null };
 
 // Kök seviyede route'u olan (veya olacak) path'ler bir projeyle gölgelenemez.
 // Statik route'lar zaten dinamik segmentten önce eşleşir, ama admin'in
