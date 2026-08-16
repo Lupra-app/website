@@ -52,6 +52,9 @@ const SCROLL_SPIN_RAD = Math.PI * 2.5;
 const HERO_Y = 0.66;
 const HERO_SCALE_VH = 42;
 
+/** Smallest gap kept between the mark's outer edge and the window edge. */
+const EDGE_MARGIN = 16;
+
 /**
  * The side-travel choreography needs a gutter beside the content to travel in.
  *
@@ -180,7 +183,14 @@ export function Scene3DProvider({ children }: { children: ReactNode }) {
       const viewportHalf = window.innerWidth / 2;
       const gutter = Math.max(0, viewportHalf - contentHalfWidth());
       const diameter = gsap.utils.clamp(200, 330, Math.max(gutter * 1.35, window.innerHeight * 0.3));
-      return { gutter, diameter, centreFromEdge: gutter / 2 };
+      // Centring the mark in the gutter pushed its outer edge off-screen once
+      // it grew wider than the gutter — measured 36px lost at 1440px and 91px
+      // at 1200px, i.e. on every laptop width up to 1680px. Pin the outer edge
+      // inside the viewport instead. The mark then tucks further under the
+      // content column on narrow screens, which costs nothing: it renders
+      // behind the page, so the text stays on top of it either way.
+      const centreFromEdge = Math.max(gutter / 2, diameter / 2 + EDGE_MARGIN);
+      return { gutter, diameter, centreFromEdge };
     }
 
     const laneX = (side: -1 | 1) => {
