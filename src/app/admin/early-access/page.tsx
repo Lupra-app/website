@@ -1,14 +1,28 @@
+import Link from "next/link";
 import { requireAdmin } from "@/lib/dal";
-import { listEarlyAccess } from "@/lib/admin-data";
-import { formatDateTime } from "@/lib/format";
+import { getEarlyAccessStats, listEarlyAccess } from "@/lib/admin-data";
 import { DEFAULT_PAGE_SIZE, parsePage, parseQuery } from "@/lib/pagination";
 import { Pagination } from "../components/Pagination";
 import { SearchForm } from "../components/SearchForm";
-import { EmptyState, TablePanel, Td, Th, Tr } from "../components/AdminTable";
+import { EmptyState, TablePanel, Th } from "../components/AdminTable";
+import { EarlyAccessRow } from "./components/EarlyAccessRow";
+import { STATUS_LABELS, type EarlyAccessStatusKey } from "./form-state";
 
 export const metadata = {
   title: "Erken Erişim | Admin",
 };
+
+const STATUS_FILTERS: { value: EarlyAccessStatusKey | undefined; label: string }[] = [
+  { value: undefined, label: "Tümü" },
+  { value: "new", label: STATUS_LABELS.new },
+  { value: "invited", label: STATUS_LABELS.invited },
+  { value: "joined", label: STATUS_LABELS.joined },
+];
+
+function parseStatusFilter(value: string | string[] | undefined) {
+  const v = Array.isArray(value) ? value[0] : value;
+  return v === "new" || v === "invited" || v === "joined" ? v : undefined;
+}
 
 export default async function EarlyAccessPage({
   searchParams,
@@ -19,19 +33,12 @@ export default async function EarlyAccessPage({
   const sp = await searchParams;
   const page = parsePage(sp.page);
   const q = parseQuery(sp.q);
+  const status = parseStatusFilter(sp.status);
 
-  const { rows, total, pageCount } = await listEarlyAccess({
-    page,
-    pageSize: DEFAULT_PAGE_SIZE,
-    q: q || undefined,
-  });
-
-  // Bu sayfanın görüntülenmesi KASITLI olarak loglanmıyor. Denendi ve geri
-  // alındı: yalnızca ilk sayfada loglamak bile aktivite tablosunun tamamını
-  // ele geçirdi (8 kaydın 8'i "liste görüntülendi"), gerçek işlemleri —
-  // giriş, proje düzenleme, CSV indirme — görünmez hâle getirdi. Ayrıca her
-  // sayfa render'ına bir veritabanı yazması ekliyordu. Aktivite kaydı
-  // eylemler içindir, ziyaretler için değil.
+  const [stats, { rows, total, pageCount }] = await Promise.all([
+    getEarlyAccessStats(),
+    listEarlyAccess({ page, pageSize: DEFAULT_PAGE_SIZE, q: q || undefined, status }),
+  ]);
 
   return (
     <div>
@@ -41,10 +48,10 @@ export default async function EarlyAccessPage({
             Erken Erişim Kayıtları
           </h1>
           <p className="mt-2 text-sm text-muted">
-            Lupra&apos;ya erişim talebinde bulunan e-posta adreslerinin listesi.
+            Ana sayfadaki formdan kaydolan herkes, nereden geldiğiyle birlikte burada.
           </p>
         </div>
-        {total > 0 && (
+        {stats.total > 0 && (
           <a
             href="/api/admin/early-access-export"
             download
@@ -63,18 +70,69 @@ export default async function EarlyAccessPage({
         )}
       </div>
 
+      <div className="mb-8 grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <StatTile label="Toplam kayıt" value={stats.total} />
+        <StatTile label="Bugün" value={stats.today} />
+        <StatTile label="Son 7 gün" value={stats.week} />
+        <StatTile
+          label="En çok getiren"
+          value={stats.topSource?.name ?? "—"}
+          hint={stats.topSource ? `${stats.topSource.count} kayıt` : undefined}
+          small
+        />
+      </div>
+
       <SearchForm
         action="/admin/early-access"
         defaultValue={q}
         placeholder="E-posta adresinde ara…"
+        hidden={{ status }}
       />
+
+      <div className="mb-6 flex flex-wrap gap-2">
+        {STATUS_FILTERS.map((filter) => {
+          const active = status === filter.value;
+          const params = new URLSearchParams();
+          if (q) params.set("q", q);
+          if (filter.value) params.set("status", filter.value);
+          const href = params.toString()
+            ? `/admin/early-access?${params}`
+            : "/admin/early-access";
+
+          const count =
+            filter.value === "invited"
+              ? stats.invited
+              : filter.value === "joined"
+                ? stats.joined
+                : filter.value === "new"
+                  ? stats.total - stats.invited - stats.joined
+                  : stats.total;
+
+          return (
+            <Link
+              key={filter.label}
+              href={href}
+              aria-current={active ? "true" : undefined}
+              className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
+                active
+                  ? "border-accent/40 bg-accent/15 text-white"
+                  : "border-white/10 bg-white/5 text-muted hover:text-white"
+              }`}
+            >
+              {filter.label} <span className="text-muted/60">{count}</span>
+            </Link>
+          );
+        })}
+      </div>
 
       {rows.length === 0 ? (
         <EmptyState
-          title={q ? `"${q}" için sonuç bulunamadı.` : "Henüz hiç kayıt yok."}
+          title={
+            q || status ? "Bu filtreye uyan kayıt yok." : "Henüz hiç kayıt yok."
+          }
           hint={
-            q
-              ? "Farklı bir arama dene veya filtreyi temizle."
+            q || status
+              ? "Filtreyi değiştir veya temizle."
               : "Ana sayfadaki erken erişim formundan gelen kayıtlar burada görünecek."
           }
         />
@@ -84,28 +142,56 @@ export default async function EarlyAccessPage({
             <thead>
               <tr className="border-b border-white/15 bg-white/5">
                 <Th>E-posta</Th>
+                <Th>Kaynak</Th>
+                <Th>Cihaz</Th>
+                <Th>Durum</Th>
                 <Th>Kayıt Tarihi</Th>
               </tr>
             </thead>
             <tbody>
-              {rows.map((record) => (
-                <Tr key={record.id}>
-                  <Td className="font-medium text-white">{record.email}</Td>
-                  <Td className="text-xs text-muted">{formatDateTime(record.created_at)}</Td>
-                </Tr>
+              {rows.map((row) => (
+                <EarlyAccessRow key={row.id} row={row} />
               ))}
             </tbody>
           </TablePanel>
 
+          <p className="mt-3 text-xs text-muted/60">
+            Ayrıntıları görmek ve davet durumunu işaretlemek için bir satıra tıkla.
+          </p>
+
           <Pagination
             basePath="/admin/early-access"
-            filters={{ q: q || undefined }}
+            filters={{ q: q || undefined, status }}
             page={page}
             pageCount={pageCount}
             total={total}
           />
         </>
       )}
+    </div>
+  );
+}
+
+function StatTile({
+  label,
+  value,
+  hint,
+  small,
+}: {
+  label: string;
+  value: string | number;
+  hint?: string;
+  small?: boolean;
+}) {
+  return (
+    <div className="glass rounded-2xl border border-white/15 px-5 py-4">
+      <p className="text-xs font-medium uppercase tracking-wide text-muted/80">{label}</p>
+      <p
+        className={`mt-2 font-heading font-bold text-white ${small ? "truncate text-xl" : "text-3xl"}`}
+      >
+        {value}
+      </p>
+      {hint && <p className="mt-1 text-xs text-muted/60">{hint}</p>}
     </div>
   );
 }

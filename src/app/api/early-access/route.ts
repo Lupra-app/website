@@ -55,7 +55,8 @@ export async function POST(request: Request) {
 
   try {
     const supabase = getSupabaseAdmin();
-    const { error } = await supabase.from("early_access").insert({
+
+    let { error } = await supabase.from("early_access").insert({
       email,
       source_referrer: field(attribution.referrer),
       utm_source: field(attribution.utmSource),
@@ -67,6 +68,21 @@ export async function POST(request: Request) {
       os,
       country: country ? country.slice(0, 2).toUpperCase() : null,
     });
+
+    // Kolon yok, yani şema migration'ı henüz çalıştırılmamış. İki koda da
+    // bakılıyor: PostgREST isteği kendi şema önbelleğinde durdurursa PGRST204,
+    // Postgres'e kadar giderse 42703 döner.
+    //
+    // Bu durumda ziyaretçinin kaydını KAYBETMEK en kötü sonuç olur — bağlam
+    // alanlarını bırakıp yalnızca e-postayı yazıyoruz. Kod canlıya SQL'den
+    // önce çıkarsa form çalışmaya devam eder, sadece ayrıntılar boş kalır.
+    if (error?.code === "PGRST204" || error?.code === "42703") {
+      console.warn(
+        "early_access: bağlam kolonları yok, yalnızca e-posta kaydedildi. " +
+          "supabase/schema.sql çalıştırılmalı."
+      );
+      ({ error } = await supabase.from("early_access").insert({ email }));
+    }
 
     // Unique violation (already signed up) is not a failure from the
     // visitor's point of view — they're on the list either way.

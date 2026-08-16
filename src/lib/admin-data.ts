@@ -168,11 +168,66 @@ export async function listEarlyAccessForExport(): Promise<EarlyAccessRow[]> {
   await requireAdmin();
   const { data, error } = await getSupabaseAdmin()
     .from("early_access")
-    .select("id, email, created_at")
+    .select(EARLY_ACCESS_FIELDS)
     .order("created_at", { ascending: false });
 
   if (error) fail("Erken erişim kayıtları", error);
-  return data ?? [];
+  return (data ?? []) as unknown as EarlyAccessRow[];
+}
+
+/**
+ * Listenin üstündeki özet kartları.
+ *
+ * Sayımlar veritabanında yapılıyor (head + count), satırlar çekilip JS'te
+ * sayılmıyor — liste büyüdüğünde de sabit maliyette kalsın diye. Kaynak
+ * dağılımı için satır çekmek gerekiyor ama yalnızca tek bir kolon okunuyor.
+ */
+export async function getEarlyAccessStats() {
+  await requireAdmin();
+  const supabase = getSupabaseAdmin();
+
+  const now = new Date();
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+  const sevenDaysAgo = new Date(now.getTime() - 7 * 86400_000).toISOString();
+
+  const [total, today, week, invited, joined, sources] = await Promise.all([
+    supabase.from("early_access").select("*", { count: "exact", head: true }),
+    supabase.from("early_access").select("*", { count: "exact", head: true }).gte("created_at", startOfToday),
+    supabase.from("early_access").select("*", { count: "exact", head: true }).gte("created_at", sevenDaysAgo),
+    supabase.from("early_access").select("*", { count: "exact", head: true }).eq("status", "invited"),
+    supabase.from("early_access").select("*", { count: "exact", head: true }).eq("status", "joined"),
+    supabase.from("early_access").select("utm_source, source_referrer"),
+  ]);
+
+  if (total.error) fail("Erken erişim özeti", total.error);
+
+  // En çok kayıt getiren kanal: kampanya etiketi varsa o, yoksa referrer'ın
+  // alan adı, o da yoksa "doğrudan".
+  const tally = new Map<string, number>();
+  for (const row of sources.data ?? []) {
+    const utm = (row as { utm_source: string | null }).utm_source;
+    const ref = (row as { source_referrer: string | null }).source_referrer;
+    let key = "Doğrudan";
+    if (utm) key = utm;
+    else if (ref) {
+      try {
+        key = new URL(ref).hostname.replace(/^www\./, "");
+      } catch {
+        key = ref.slice(0, 40);
+      }
+    }
+    tally.set(key, (tally.get(key) ?? 0) + 1);
+  }
+  const topSource = [...tally.entries()].sort((a, b) => b[1] - a[1])[0] ?? null;
+
+  return {
+    total: total.count ?? 0,
+    today: today.count ?? 0,
+    week: week.count ?? 0,
+    invited: invited.count ?? 0,
+    joined: joined.count ?? 0,
+    topSource: topSource ? { name: topSource[0], count: topSource[1] } : null,
+  };
 }
 
 export async function listAuditLogs(opts: {

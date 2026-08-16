@@ -21,6 +21,9 @@ export const AUDIT_ACTIONS = {
   login: "Giriş yapıldı",
   logout: "Çıkış yapıldı",
   export_early_access_csv: "Erken erişim CSV'si indirildi",
+  update_early_access_status: "Erken erişim kaydı güncellendi",
+  // Artık üretilmiyor (liste görüntüleme loglaması kaldırıldı), ama tablodaki
+  // eski satırların etiketi için burada duruyor.
   view_early_access: "Erken erişim listesi görüntülendi",
   create_project: "Proje oluşturuldu",
   update_project: "Proje güncellendi",

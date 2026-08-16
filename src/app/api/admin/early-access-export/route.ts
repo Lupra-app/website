@@ -2,6 +2,8 @@ import { requireAdminApi } from "@/lib/dal";
 import { listEarlyAccessForExport } from "@/lib/admin-data";
 import { logAdminAction } from "@/lib/audit-log";
 import { formatDateTime } from "@/lib/format";
+import { DEVICE_LABELS, type DeviceType } from "@/lib/user-agent";
+import { statusLabel } from "@/app/admin/early-access/form-state";
 
 /**
  * CSV hücresi: RFC 4180 kaçışı + elektronik tablo formül enjeksiyonu koruması.
@@ -28,9 +30,43 @@ export async function GET() {
     return Response.json({ error: "server_error" }, { status: 500 });
   }
 
+  const header = [
+    "E-posta",
+    "Kayıt Tarihi",
+    "Durum",
+    "Kaynak",
+    "Kampanya Ortamı",
+    "Kampanya Adı",
+    "Geldiği Site",
+    "Cihaz",
+    "Tarayıcı",
+    "İşletim Sistemi",
+    "Dil",
+    "Ülke",
+    "Not",
+  ];
+
   const lines = [
-    ["E-posta", "Kayıt Tarihi"].map(csvCell).join(","),
-    ...rows.map((row) => [csvCell(row.email), csvCell(formatDateTime(row.created_at))].join(",")),
+    header.map(csvCell).join(","),
+    ...rows.map((row) =>
+      [
+        row.email,
+        formatDateTime(row.created_at),
+        statusLabel(row.status),
+        row.utm_source ?? "",
+        row.utm_medium ?? "",
+        row.utm_campaign ?? "",
+        row.source_referrer ?? "",
+        row.device_type ? (DEVICE_LABELS[row.device_type as DeviceType] ?? row.device_type) : "",
+        row.browser ?? "",
+        row.os ?? "",
+        row.language ?? "",
+        row.country ?? "",
+        row.note ?? "",
+      ]
+        .map(csvCell)
+        .join(",")
+    ),
   ];
 
   // BOM: Excel UTF-8'i ancak bununla doğru algılıyor, yoksa Türkçe karakterler
