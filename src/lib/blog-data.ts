@@ -42,7 +42,13 @@ export type PublicComment = {
 
 const SUMMARY_FIELDS = "slug, title, excerpt, cover_url, tags, published_at, reading_minutes";
 
-export async function listPublishedPosts(tag?: string): Promise<PostSummary[]> {
+/**
+ * `limit`: ana sayfa yalnızca son 3 yazıyı gösteriyor. Sınır verilmezse her
+ * ana sayfa render'ı yayındaki BÜTÜN yazıları (özet metinleriyle birlikte)
+ * çeker ve 3'ü dışındakileri atardı — bugün 1 yazıyla farkı yok, 200 yazıyla
+ * ana sayfanın en pahalı sorgusu olurdu.
+ */
+export async function listPublishedPosts(tag?: string, limit?: number): Promise<PostSummary[]> {
   let query = getSupabaseAdmin()
     .from("posts")
     .select(SUMMARY_FIELDS)
@@ -50,6 +56,7 @@ export async function listPublishedPosts(tag?: string): Promise<PostSummary[]> {
     .order("published_at", { ascending: false, nullsFirst: false });
 
   if (tag) query = query.contains("tags", [tag]);
+  if (limit) query = query.limit(limit);
 
   const { data, error } = await query;
   if (error) {

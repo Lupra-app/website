@@ -18,7 +18,7 @@ export default async function Home() {
     getUserSession(),
     listSiteComments(),
     listPublishedProjects(4),
-    listPublishedPosts(),
+    listPublishedPosts(undefined, 3),
   ]);
 
   return (
@@ -41,7 +41,7 @@ export default async function Home() {
             "Ürünler" başlığı, ürün olmadığını duyurmaktan başka işe yaramaz. */}
         {projects.length > 0 && <Products projects={projects} />}
         <Features />
-        {posts.length > 0 && <LatestPosts posts={posts.slice(0, 3)} />}
+        {posts.length > 0 && <LatestPosts posts={posts} />}
         <IdeaWall comments={ideas} />
         <FAQ />
         <EarlyAccess />

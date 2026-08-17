@@ -39,8 +39,19 @@ export function checkRateLimit(
   return { ok: true, retryAfterSeconds: 0 };
 }
 
-/** İstemci IP'si — proxy arkasında x-forwarded-for'un ilk parçası. */
+/**
+ * İstemci IP'si.
+ *
+ * `x-real-ip` önce deneniyor: onu proxy'nin kendisi yazar. `x-forwarded-for`
+ * ise bir listedir ve istemci kendi sahte değerini listenin başına
+ * ekleyebilir — ilk parçaya güvenmek, her istekte uydurma bir IP göndererek
+ * hız sınırını tamamen atlatmaya izin verirdi. Yedek olarak kullanırken de
+ * son parçayı alıyoruz: zincire en son yazan, en yakın (güvenilir) proxy'dir.
+ */
 export function clientIp(request: Request): string {
-  const forwarded = request.headers.get("x-forwarded-for");
-  return forwarded?.split(",")[0]?.trim() || request.headers.get("x-real-ip") || "unknown";
+  const realIp = request.headers.get("x-real-ip")?.trim();
+  if (realIp) return realIp;
+
+  const chain = request.headers.get("x-forwarded-for")?.split(",") ?? [];
+  return chain[chain.length - 1]?.trim() || "unknown";
 }

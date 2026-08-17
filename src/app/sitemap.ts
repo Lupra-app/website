@@ -1,6 +1,16 @@
 import type { MetadataRoute } from "next";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
 
+/**
+ * Sitemap saatte bir yeniden üretilir.
+ *
+ * Bu satır olmadan Next sitemap'i build sırasında prerender ediyor: Supabase
+ * sorgusu bir kez çalışıp sonucu HTML gibi donuyor. Yani yayınlanan her yeni
+ * yazı ve ürün, bir sonraki deploy'a kadar sitemap'e HİÇ girmiyordu — içerik
+ * sisteminin tamamı arama/LLM keşfi için kurulduğu hâlde.
+ */
+export const revalidate = 3600;
+
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const base: MetadataRoute.Sitemap = [
     {

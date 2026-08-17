@@ -25,12 +25,20 @@ import type { ProjectFormState } from "./form-state";
 // Kök seviyede route'u olan (veya olacak) path'ler bir projeyle gölgelenemez.
 // Statik route'lar zaten dinamik segmentten önce eşleşir, ama admin'in
 // "yayında ama hiç açılmayan" bir sayfa oluşturmasına izin vermeyelim.
+// Bu listeyi src/app/ altındaki kök seviye klasörlerle senkron tut — (auth)
+// gibi route grupları URL'de görünmez, yani içindeki giris/kayit/sifre-sifirla
+// da kök seviye adres kaplar.
 const RESERVED_SLUGS = new Set([
   "admin",
   "login",
   "api",
   "auth",
   "blog",
+  "urunler",
+  "profil",
+  "giris",
+  "kayit",
+  "sifre-sifirla",
   "robots.txt",
   "sitemap.xml",
 ]);

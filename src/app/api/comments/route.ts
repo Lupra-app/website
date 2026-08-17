@@ -42,8 +42,11 @@ export async function POST(request: Request) {
   // postId yoksa yorum site geneline (ana sayfaya) bırakılmış demektir.
   const rawPostId = String(payload.postId ?? "").trim();
   const postId = rawPostId || null;
-  const name = String(payload.name ?? "").trim().slice(0, MAX_NAME);
-  const text = String(payload.body ?? "").trim().slice(0, MAX_BODY);
+  // String() yerine tip kontrolü: `{"name":{}}` gönderilirse String() bunu
+  // "[object Object]"e çevirir, 15 karakter olduğu için alt sınırı geçer ve
+  // yorum kuyruğuna çöp satır düşerdi.
+  const name = typeof payload.name === "string" ? payload.name.trim().slice(0, MAX_NAME) : "";
+  const text = typeof payload.body === "string" ? payload.body.trim().slice(0, MAX_BODY) : "";
   const email = normalizeEmail(payload.email);
 
   if (postId && !UUID_RE.test(postId)) {

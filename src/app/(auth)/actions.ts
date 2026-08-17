@@ -1,8 +1,8 @@
 "use server";
 
-import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { getSupabaseServer } from "@/lib/supabase-server";
+import { emailSiteOrigin } from "@/lib/site-url";
 import { isValidEmail, normalizeEmail } from "@/lib/validation";
 import {
   MIN_PASSWORD,
@@ -21,12 +21,7 @@ import {
  */
 
 /** Doğrulama ve şifre sıfırlama maillerinin döneceği mutlak adres. */
-async function siteOrigin(): Promise<string> {
-  const h = await headers();
-  const host = h.get("x-forwarded-host") ?? h.get("host") ?? "localhost:3000";
-  const proto = h.get("x-forwarded-proto") ?? (host.startsWith("localhost") ? "http" : "https");
-  return `${proto}://${host}`;
-}
+const siteOrigin = emailSiteOrigin;
 
 export async function signUpWithPassword(
   _prev: AuthFormState,

@@ -2,11 +2,11 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { headers } from "next/headers";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
+import { emailSiteOrigin } from "@/lib/site-url";
 import { getSupabaseServer } from "@/lib/supabase-server";
 import { requireUser } from "@/lib/dal";
-import { isValidEmail, normalizeEmail } from "@/lib/validation";
+import { isValidEmail, normalizeEmail, safeHttpUrl } from "@/lib/validation";
 import { mapSupabaseAuthError } from "@/app/(auth)/auth-state";
 import type { ProfileFormState } from "./profile-state";
 
@@ -31,7 +31,9 @@ export async function updateProfile(
 
   const displayName = String(formData.get("display_name") ?? "").trim().slice(0, MAX_NAME);
   const bio = String(formData.get("bio") ?? "").trim().slice(0, MAX_BIO);
-  const avatarUrl = String(formData.get("avatar_url") ?? "").trim();
+  // Bu değer <img src> olarak basılıyor; şema doğrulanmadan saklanmıyor.
+  // Şemasız/bozuk bir değer boşa düşer ve avatar baş harf rozetine geri döner.
+  const avatarUrl = safeHttpUrl(formData.get("avatar_url"));
   const newsletter = formData.get("newsletter") === "on";
 
   const { error } = await getSupabaseAdmin()
@@ -89,14 +91,12 @@ export async function updateEmail(
   const email = normalizeEmail(formData.get("email"));
   if (!isValidEmail(email)) return { error: "invalid_email", info: null };
 
-  const h = await headers();
-  const host = h.get("x-forwarded-host") ?? h.get("host") ?? "localhost:3000";
-  const proto = h.get("x-forwarded-proto") ?? (host.startsWith("localhost") ? "http" : "https");
+  const origin = await emailSiteOrigin();
 
   const supabase = await getSupabaseServer();
   const { error } = await supabase.auth.updateUser(
     { email },
-    { emailRedirectTo: `${proto}://${host}/auth/callback?next=%2Fprofil%2Fayarlar` }
+    { emailRedirectTo: `${origin}/auth/callback?next=%2Fprofil%2Fayarlar` }
   );
 
   if (error) {
