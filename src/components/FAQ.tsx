@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { gsap, useGSAP, prefersReducedMotion } from "@/lib/gsap";
 
 const FAQ_ITEMS = [
@@ -68,6 +68,9 @@ const faqJsonLd = {
 
 export function FAQ() {
   const sectionRef = useRef<HTMLElement>(null);
+  // İlk soru açık başlıyor: hepsi kapalıyken bölüm boş bir liste gibi duruyor
+  // ve içeride cevap olduğu anlaşılmıyor.
+  const [openIndex, setOpenIndex] = useState<number | null>(0);
 
   useGSAP(
     () => {
@@ -104,19 +107,69 @@ export function FAQ() {
         <h2 className="font-heading text-3xl font-semibold text-white sm:text-4xl">
           Sıkça sorulan sorular
         </h2>
-        <div className="mt-14 flex flex-col gap-6">
-          {FAQ_ITEMS.map((item) => (
-            <div
-              key={item.question}
-              data-faq-item
-              className="rounded-2xl border border-white/6 bg-bg-raised/75 p-6 backdrop-blur-sm sm:p-7"
-            >
-              <h3 className="font-heading text-lg font-semibold text-white">
-                {item.question}
-              </h3>
-              <p className="mt-2 text-muted">{item.answer}</p>
-            </div>
-          ))}
+        <div className="mt-14 flex flex-col gap-3">
+          {FAQ_ITEMS.map((item, index) => {
+            const open = openIndex === index;
+            const panelId = `sss-cevap-${index}`;
+            const buttonId = `sss-soru-${index}`;
+
+            return (
+              <div
+                key={item.question}
+                data-faq-item
+                className="overflow-hidden rounded-2xl border border-white/6 bg-bg-raised/75 backdrop-blur-sm transition-colors hover:border-white/15"
+              >
+                <h3>
+                  <button
+                    type="button"
+                    id={buttonId}
+                    aria-expanded={open}
+                    aria-controls={panelId}
+                    onClick={() => setOpenIndex(open ? null : index)}
+                    data-cursor-hover
+                    className="flex w-full items-center justify-between gap-4 px-6 py-5 text-left sm:px-7"
+                  >
+                    <span className="font-heading text-lg font-semibold text-white">
+                      {item.question}
+                    </span>
+                    <span
+                      aria-hidden="true"
+                      className={`shrink-0 text-accent-light transition-transform duration-300 ${
+                        open ? "rotate-45" : ""
+                      }`}
+                    >
+                      <svg className="h-5 w-5" viewBox="0 0 20 20" fill="none">
+                        <path
+                          d="M10 4v12M4 10h12"
+                          stroke="currentColor"
+                          strokeWidth="1.8"
+                          strokeLinecap="round"
+                        />
+                      </svg>
+                    </span>
+                  </button>
+                </h3>
+
+                {/* grid-rows 0fr -> 1fr: cevap DOM'da kalıyor, yalnızca
+                    görsel olarak katlanıyor. display:none kullanmamanın sebebi
+                    SEO rehberi: gizlenen metin alıntılanmıyor. Sayfadaki
+                    FAQPage yapılandırılmış verisi de tam metni taşımaya
+                    devam ediyor. */}
+                <div
+                  id={panelId}
+                  role="region"
+                  aria-labelledby={buttonId}
+                  className={`grid transition-[grid-template-rows] duration-300 ease-out ${
+                    open ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
+                  }`}
+                >
+                  <div className="overflow-hidden">
+                    <p className="px-6 pb-6 text-muted sm:px-7">{item.answer}</p>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
     </section>
