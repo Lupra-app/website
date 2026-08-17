@@ -231,3 +231,29 @@ create index if not exists idx_comments_post_status
   on comments(post_id, status, created_at desc);
 create index if not exists idx_comments_status_created
   on comments(status, created_at desc);
+
+-- ---------------------------------------------------------------------------
+-- Kullanıcı profilleri (hesap sistemi)
+--
+-- Supabase'in auth.users tablosuna uygulama alanı eklenemez, bu yüzden profil
+-- verisi ayrı tabloda ve auth.users.id'ye foreign key ile bağlı. Kullanıcı
+-- silinince profili de gider (cascade).
+--
+-- DİKKAT: bu tabloda da RLS açık ve policy YOK — projenin geri kalanıyla aynı
+-- kalıp. Erişim service-role ile yapılıyor ve her sorgu src/lib/dal.ts'teki
+-- oturumdan gelen kullanıcı kimliğiyle filtreleniyor. İstemciden gelen bir
+-- kullanıcı kimliğine asla güvenilmiyor.
+-- ---------------------------------------------------------------------------
+create table if not exists profiles (
+  id uuid primary key references auth.users(id) on delete cascade,
+  display_name text,
+  avatar_url text,
+  bio text,
+  newsletter_opt_in boolean not null default false,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+alter table profiles enable row level security;
+
+create index if not exists idx_profiles_created_at on profiles(created_at desc);

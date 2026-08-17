@@ -49,6 +49,29 @@ There is no test suite configured.
   by IP and inserts into Supabase. Duplicate emails (`23505`) are treated as success — the visitor
   is on the list either way.
 
+## Accounts (`src/app/(auth)/`, `src/app/profil/`)
+
+- **Two user classes, one auth system.** Anyone can sign up (GitHub, Google, or email+password)
+  at `/kayit`; `/giris` is the single sign-in page. Being an *admin* is a separate question,
+  answered only by the `admin_users` allowlist. `requireUser()` gates `/profil`, `requireAdmin()`
+  gates `/admin` — never substitute one for the other. `UserSession.isAdmin` exists to show the
+  "Yönetim paneli" link and must not be used to make an authorization decision.
+- **`/auth/callback` no longer signs anyone out.** It used to, because the only accounts were
+  admin accounts. With public signup that logic would eject every new user on the spot.
+- **Profile writes never accept a user id from the client.** Every action in
+  `src/app/profil/actions.ts` targets `session.userId` from `requireUser()`. Same for avatar
+  uploads: the storage path is built from the session id, so one user cannot overwrite another's
+  file. `src/lib/profile-data.ts` takes a `userId` parameter and callers must only ever pass the
+  session's.
+- **Email confirmation is ON in Supabase** (`mailer_autoconfirm: false`), so `signUp()` returns a
+  user but *no session* — the signup form has to end on a "check your email" screen. The built-in
+  Supabase mailer is heavily rate-limited; production needs real SMTP.
+- **Auth errors are deliberately vague.** "Wrong email or password" rather than "no such user",
+  and password reset always reports success — otherwise the form becomes a way to enumerate which
+  addresses have accounts.
+- `scripts/auth-security-test.mjs` creates a real non-admin user, signs in for real, and asserts
+  that session cannot reach any `/admin` route. Run it after touching auth.
+
 ## Admin panel (`src/app/admin/`)
 
 - **Reads go through the service-role key, not the user's session.** All four tables have RLS

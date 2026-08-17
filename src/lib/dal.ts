@@ -20,6 +20,20 @@ import { getSupabaseAdmin } from "@/lib/supabase-admin";
 export type AdminSession = { userId: string; email: string };
 
 /**
+ * Oturum açmış herhangi bir kullanıcı — yönetici olması gerekmez.
+ *
+ * `isAdmin` alanı arayüzün "Yönetim paneli" bağlantısını göstermesi için var;
+ * YETKİ KARARI İÇİN KULLANILMAZ. Yönetici kapısı her zaman requireAdmin().
+ */
+export type UserSession = {
+  userId: string;
+  email: string;
+  isAdmin: boolean;
+  displayName: string | null;
+  avatarUrl: string | null;
+};
+
+/**
  * E-posta allowlist'te mi? Service-role ile sorgular (RLS bypass).
  *
  * Tüm satırları çekip karşılaştırma JS tarafında yapılıyor. Sebebi güvenlik:
@@ -83,13 +97,14 @@ export async function requireAdmin(): Promise<AdminSession> {
   if (session) return session;
 
   // Oturum var ama allowlist'te değil mi, yoksa hiç oturum yok mu? Ayırmak
-  // login sayfasında doğru mesajı göstermek için gerekli.
+  // giriş sayfasında doğru mesajı göstermek için gerekli: birincisi "senin
+  // yetkin yok", ikincisi "önce giriş yap".
   const supabase = await getSupabaseServer();
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
-  redirect(user ? "/login?error=forbidden" : "/login");
+  redirect(user ? "/giris?error=forbidden" : "/giris?next=%2Fadmin");
 }
 
 /**
@@ -109,4 +124,89 @@ export async function requireAdminApi(): Promise<
     ok: false,
     response: Response.json({ error: "unauthorized" }, { status: 401 }),
   };
+}
+
+// ---------------------------------------------------------------------------
+// Normal kullanıcı katmanı (hesap sistemi)
+//
+// Yönetici katmanından TAMAMEN ayrı: buradaki hiçbir fonksiyon /admin kapısını
+// açmaz. Bir kullanıcının yönetici olup olmadığı yalnızca requireAdmin() ile
+// karara bağlanır ve o fonksiyon bu değişiklikten etkilenmedi.
+// ---------------------------------------------------------------------------
+
+/**
+ * Kullanıcının profil satırını getirir, yoksa oluşturur.
+ *
+ * Upsert olmasının sebebi: kullanıcı Supabase Auth'ta oluşuyor ama profil
+ * satırı uygulama tarafında. Araya bir hata girerse "profili olmayan
+ * kullanıcı" ortaya çıkardı ve her sayfanın bunu ayrı ayrı ele alması
+ * gerekirdi. İlk okumada oluşturmak bu durumu tamamen ortadan kaldırıyor.
+ */
+async function ensureProfile(userId: string, fallbackName: string | null) {
+  const supabase = getSupabaseAdmin();
+
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("display_name, avatar_url")
+    .eq("id", userId)
+    .maybeSingle();
+
+  if (error) {
+    // Tablo henüz oluşturulmamışsa oturum yine de çalışsın; profil alanları boş kalır.
+    console.error("[dal] profiles okunamadı:", error.code, error.message);
+    return { display_name: fallbackName, avatar_url: null };
+  }
+  if (data) return data;
+
+  const { data: created, error: insertError } = await supabase
+    .from("profiles")
+    .insert({ id: userId, display_name: fallbackName })
+    .select("display_name, avatar_url")
+    .maybeSingle();
+
+  if (insertError) {
+    console.error("[dal] profil oluşturulamadı:", insertError.code, insertError.message);
+    return { display_name: fallbackName, avatar_url: null };
+  }
+  return created ?? { display_name: fallbackName, avatar_url: null };
+}
+
+/**
+ * Oturum açmış kullanıcı. Yönlendirme yapmaz, null döner.
+ *
+ * cache(): aynı istek içinde başlık, sayfa ve action'ların hepsi bunu
+ * çağırabiliyor; memoize edilmezse her biri ayrı bir auth round trip'i olurdu.
+ */
+export const getUserSession = cache(async (): Promise<UserSession | null> => {
+  const supabase = await getSupabaseServer();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user?.email) return null;
+
+  // OAuth sağlayıcıları adı user_metadata'ya koyuyor; ilk profil için iyi bir
+  // varsayılan. Kullanıcı sonradan ayarlardan değiştirebiliyor.
+  const metaName =
+    (user.user_metadata?.full_name as string | undefined) ??
+    (user.user_metadata?.name as string | undefined) ??
+    (user.user_metadata?.user_name as string | undefined) ??
+    null;
+
+  const profile = await ensureProfile(user.id, metaName);
+
+  return {
+    userId: user.id,
+    email: user.email.toLowerCase(),
+    isAdmin: await isAdminEmail(user.email),
+    displayName: profile.display_name ?? metaName,
+    avatarUrl: profile.avatar_url ?? null,
+  };
+});
+
+/** Sayfa ve server action'lar için: oturum yoksa /giris'e yollar. */
+export async function requireUser(nextPath = "/profil"): Promise<UserSession> {
+  const session = await getUserSession();
+  if (session) return session;
+  redirect(`/giris?next=${encodeURIComponent(nextPath)}`);
 }
