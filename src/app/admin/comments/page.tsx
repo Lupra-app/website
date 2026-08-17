@@ -104,8 +104,9 @@ export default async function CommentsPage({
                         <span className="text-xs text-muted/60">{comment.country}</span>
                       )}
                     </div>
-                    {comment.posts && (
-                      <p className="mt-1 text-xs text-muted">
+                    {/* post_id boşsa yorum ana sayfadaki fikir duvarından geldi. */}
+                    <p className="mt-1 text-xs text-muted">
+                      {comment.posts ? (
                         <Link
                           href={`/blog/${comment.posts.slug}`}
                           target="_blank"
@@ -113,8 +114,16 @@ export default async function CommentsPage({
                         >
                           {comment.posts.title} ↗
                         </Link>
-                      </p>
-                    )}
+                      ) : (
+                        <Link
+                          href="/#fikirler"
+                          target="_blank"
+                          className="text-accent-light hover:text-white"
+                        >
+                          Ana sayfa · Fikir duvarı ↗
+                        </Link>
+                      )}
+                    </p>
                   </div>
                 </div>
 

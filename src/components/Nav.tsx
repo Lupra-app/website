@@ -1,16 +1,20 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { gsap, useGSAP, prefersReducedMotion } from "@/lib/gsap";
 import { Logo } from "./Logo";
 
 const NAV_LINKS = [
   { href: "#how-it-works", label: "Nasıl çalışır" },
+  { href: "#fikirler", label: "Fikirler" },
   { href: "#faq", label: "SSS" },
-  { href: "#early-access", label: "Erken erişim" },
 ];
 
-export function Nav() {
+/** Oturum bilgisi sunucudan geliyor; Nav'ın kendisi client component kalıyor. */
+export type NavSession = { displayName: string | null; email: string; avatarUrl: string | null };
+
+export function Nav({ session }: { session: NavSession | null }) {
   const [scrolled, setScrolled] = useState(false);
   const headerRef = useRef<HTMLElement>(null);
 
@@ -49,9 +53,9 @@ export function Nav() {
         <a href="#top" data-cursor-hover className="rounded-sm">
           <Logo />
         </a>
-        <ul className="flex items-center gap-4 sm:gap-8">
+        <ul className="flex items-center gap-4 sm:gap-6">
           {NAV_LINKS.map((link) => (
-            <li key={link.href}>
+            <li key={link.href} className="hidden sm:block">
               <a
                 href={link.href}
                 data-cursor-hover
@@ -62,6 +66,60 @@ export function Nav() {
               </a>
             </li>
           ))}
+
+          <li>
+            <Link
+              href="/blog"
+              data-cursor-hover
+              className="group relative text-xs font-medium text-muted transition-colors hover:text-white sm:text-sm"
+            >
+              Blog
+              <span className="absolute -bottom-1 left-0 h-px w-full origin-left scale-x-0 bg-accent-light transition-transform duration-300 ease-out group-hover:scale-x-100" />
+            </Link>
+          </li>
+
+          {session ? (
+            <li>
+              <Link
+                href="/profil"
+                data-cursor-hover
+                className="flex items-center gap-2 rounded-full border border-white/15 bg-white/5 py-1.5 pl-1.5 pr-3 transition-colors hover:border-white/30 sm:pr-4"
+              >
+                {session.avatarUrl ? (
+                  /* eslint-disable-next-line @next/next/no-img-element -- Supabase Storage */
+                  <img src={session.avatarUrl} alt="" className="h-6 w-6 rounded-full object-cover" />
+                ) : (
+                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-accent/20 text-[10px] font-semibold text-accent-light">
+                    {(session.displayName ?? session.email).charAt(0).toUpperCase()}
+                  </span>
+                )}
+                <span className="hidden max-w-[7rem] truncate text-xs text-white sm:inline sm:text-sm">
+                  {session.displayName ?? "Profilim"}
+                </span>
+              </Link>
+            </li>
+          ) : (
+            <>
+              <li className="hidden sm:block">
+                <Link
+                  href="/giris"
+                  data-cursor-hover
+                  className="text-xs font-medium text-muted transition-colors hover:text-white sm:text-sm"
+                >
+                  Giriş
+                </Link>
+              </li>
+              <li>
+                <Link
+                  href="/kayit"
+                  data-cursor-hover
+                  className="rounded-full bg-accent px-4 py-2 text-xs font-semibold text-white transition-opacity hover:opacity-90 sm:text-sm"
+                >
+                  Kayıt ol
+                </Link>
+              </li>
+            </>
+          )}
         </ul>
       </nav>
     </header>

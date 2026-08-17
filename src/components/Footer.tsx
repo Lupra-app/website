@@ -1,8 +1,16 @@
 "use client";
 
 import { useRef } from "react";
+import Link from "next/link";
 import { gsap, useGSAP, prefersReducedMotion } from "@/lib/gsap";
 import { Logo } from "./Logo";
+
+/** Site içi bağlantılar — sosyal hesaplardan ayrı, next/link ile. */
+const SITE_LINKS = [
+  { label: "Blog", href: "/blog" },
+  { label: "Fikirler", href: "/#fikirler" },
+  { label: "Giriş", href: "/giris" },
+];
 
 const SOCIAL_LINKS = [
   { label: "X", href: "https://x.com/lupra" },
@@ -35,7 +43,18 @@ export function Footer() {
           <Logo iconOnly size={22} />
           <span className="text-sm">© 2026 Lupra</span>
         </div>
-        <ul className="flex items-center gap-6">
+        <ul className="flex flex-wrap items-center justify-center gap-x-6 gap-y-3">
+          {SITE_LINKS.map((link) => (
+            <li key={link.label}>
+              <Link
+                href={link.href}
+                data-cursor-hover
+                className="text-sm font-medium text-muted transition-colors hover:text-white"
+              >
+                {link.label}
+              </Link>
+            </li>
+          ))}
           {SOCIAL_LINKS.map((link) => (
             <li key={link.label}>
               <a

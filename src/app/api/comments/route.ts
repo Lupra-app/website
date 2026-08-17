@@ -39,12 +39,16 @@ export async function POST(request: Request) {
   }
 
   const payload = (body ?? {}) as Record<string, unknown>;
-  const postId = String(payload.postId ?? "").trim();
+  // postId yoksa yorum site geneline (ana sayfaya) bırakılmış demektir.
+  const rawPostId = String(payload.postId ?? "").trim();
+  const postId = rawPostId || null;
   const name = String(payload.name ?? "").trim().slice(0, MAX_NAME);
   const text = String(payload.body ?? "").trim().slice(0, MAX_BODY);
   const email = normalizeEmail(payload.email);
 
-  if (!UUID_RE.test(postId)) return Response.json({ error: "invalid_post" }, { status: 400 });
+  if (postId && !UUID_RE.test(postId)) {
+    return Response.json({ error: "invalid_post" }, { status: 400 });
+  }
   if (name.length < MIN_NAME) return Response.json({ error: "invalid_name" }, { status: 400 });
   if (text.length < MIN_BODY) return Response.json({ error: "invalid_body" }, { status: 400 });
   // E-posta opsiyonel; verildiyse geçerli olmalı.
@@ -58,16 +62,19 @@ export async function POST(request: Request) {
   try {
     const supabase = getSupabaseAdmin();
 
-    // Yazının var ve YAYINDA olduğunu doğrula: yayınlanmamış ya da uydurma bir
-    // id'ye yorum yazılmasını engelliyor.
-    const { data: post } = await supabase
-      .from("posts")
-      .select("id")
-      .eq("id", postId)
-      .eq("status", "published")
-      .maybeSingle();
+    // Bir yazıya yorum yazılıyorsa o yazının var ve YAYINDA olduğunu doğrula:
+    // yayınlanmamış ya da uydurma bir id'ye yorum yazılmasını engelliyor.
+    // Site geneli yorumlarda (postId null) böyle bir hedef yok.
+    if (postId) {
+      const { data: post } = await supabase
+        .from("posts")
+        .select("id")
+        .eq("id", postId)
+        .eq("status", "published")
+        .maybeSingle();
 
-    if (!post) return Response.json({ error: "invalid_post" }, { status: 400 });
+      if (!post) return Response.json({ error: "invalid_post" }, { status: 400 });
+    }
 
     const { error } = await supabase.from("comments").insert({
       post_id: postId,
@@ -79,7 +86,18 @@ export async function POST(request: Request) {
     });
 
     if (error) {
-      console.error("comment insert failed:", error.code, error.message);
+      // 23502 = not-null ihlali. Site geneli yorumlar post_id'nin NULL
+      // olabilmesini gerektiriyor; şema güncellenmemişse tam olarak buraya
+      // düşer ve sebebi ham hata mesajından anlaşılmaz.
+      if (error.code === "23502" && !postId) {
+        console.error(
+          "comment insert failed: comments.post_id hâlâ NOT NULL. Ana sayfa " +
+            "fikir duvarı için şu SQL çalıştırılmalı: " +
+            "alter table comments alter column post_id drop not null;"
+        );
+      } else {
+        console.error("comment insert failed:", error.code, error.message);
+      }
       return Response.json({ error: "server_error" }, { status: 500 });
     }
   } catch (err) {

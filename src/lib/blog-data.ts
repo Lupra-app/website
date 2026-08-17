@@ -111,6 +111,26 @@ export async function listApprovedComments(postId: string): Promise<PublicCommen
   return data ?? [];
 }
 
+/**
+ * Ana sayfadaki fikir duvarı: bir yazıya değil, site geneline bırakılmış
+ * onaylı yorumlar. En yenisi üstte, çünkü burada akış canlılığı önemli.
+ */
+export async function listSiteComments(limit = 12): Promise<PublicComment[]> {
+  const { data, error } = await getSupabaseAdmin()
+    .from("comments")
+    .select("id, author_name, body, created_at")
+    .is("post_id", null)
+    .eq("status", "approved")
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  if (error) {
+    console.error("[site] yorumlar okunamadı:", error.code, error.message);
+    return [];
+  }
+  return data ?? [];
+}
+
 /** Blog listesindeki etiket filtreleri için. */
 export async function listPublishedTags(): Promise<string[]> {
   const { data, error } = await getSupabaseAdmin()

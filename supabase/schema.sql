@@ -257,3 +257,14 @@ create table if not exists profiles (
 alter table profiles enable row level security;
 
 create index if not exists idx_profiles_created_at on profiles(created_at desc);
+
+-- Ana sayfa yorumları: post_id artık zorunlu değil.
+--
+-- Ziyaretçiler ana sayfada da fikir bırakabiliyor. Bir yorum ya bir yazıya
+-- ait (post_id dolu) ya da site geneline (post_id NULL). İkinci bir tablo
+-- açmak yerine aynı tabloyu kullanmak, moderasyon kuyruğunun da tek yerde
+-- kalmasını sağlıyor.
+alter table comments alter column post_id drop not null;
+
+create index if not exists idx_comments_site_level
+  on comments(status, created_at desc) where post_id is null;
