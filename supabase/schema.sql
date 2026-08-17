@@ -268,3 +268,41 @@ alter table comments alter column post_id drop not null;
 
 create index if not exists idx_comments_site_level
   on comments(status, created_at desc) where post_id is null;
+
+-- ---------------------------------------------------------------------------
+-- Siparişler / satın alma geçmişi
+--
+-- Ödeme altyapısı (Stripe) henüz bağlı değil; bu tablo o geldiğinde dolacak.
+-- Şimdiden var olmasının sebebi: profil ekranının "satın alma geçmişi" bölümü
+-- gerçek bir tabloya bakıyor ve Stripe bağlandığında yalnızca satır yazan
+-- taraf eklenecek, arayüz değişmeyecek.
+--
+-- Tutarlar KURUŞ cinsinden integer: para birimini ondalıklı sayıda tutmak
+-- yuvarlama hatası üretir.
+-- ---------------------------------------------------------------------------
+create table if not exists orders (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  order_number text not null unique,
+  description text not null,
+  amount_cents integer not null,
+  currency text not null default 'TRY',
+  status text not null default 'pending',
+  period_start timestamptz,
+  period_end timestamptz,
+  invoice_url text,
+  created_at timestamptz not null default now()
+);
+
+do $$
+begin
+  if not exists (select 1 from pg_constraint where conname = 'orders_status_check') then
+    alter table orders add constraint orders_status_check
+      check (status in ('pending', 'paid', 'refunded', 'failed', 'canceled'));
+  end if;
+end $$;
+
+alter table orders enable row level security;
+
+create index if not exists idx_orders_user_created
+  on orders(user_id, created_at desc);

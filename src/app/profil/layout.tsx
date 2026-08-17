@@ -14,6 +14,7 @@ export default async function ProfileLayout({ children }: { children: React.Reac
 
   const tabs = [
     { href: "/profil", label: "Profil" },
+    { href: "/profil/siparisler", label: "Siparişler" },
     { href: "/profil/ayarlar", label: "Ayarlar" },
   ];
 
