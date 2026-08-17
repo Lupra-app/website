@@ -21,6 +21,9 @@ export async function SiteHeader() {
         </Link>
 
         <nav className="flex items-center gap-4 text-sm">
+          <Link href="/urunler" className="text-muted transition-colors hover:text-white">
+            Ürünler
+          </Link>
           <Link href="/blog" className="text-muted transition-colors hover:text-white">
             Blog
           </Link>

@@ -7,6 +7,7 @@ import { Logo } from "./Logo";
 
 /** Site içi bağlantılar — sosyal hesaplardan ayrı, next/link ile. */
 const SITE_LINKS = [
+  { label: "Ürünler", href: "/urunler" },
   { label: "Blog", href: "/blog" },
   { label: "Fikirler", href: "/#fikirler" },
   { label: "Giriş", href: "/giris" },

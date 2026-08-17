@@ -1,35 +1,18 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { cache } from "react";
 import { notFound } from "next/navigation";
 import ReactMarkdown from "react-markdown";
-import { getSupabaseAdmin } from "@/lib/supabase-admin";
 import { Logo } from "@/components/Logo";
 import { BlockRenderer } from "@/components/BlockRenderer";
-import { blocksToPlainText, parseBlocks } from "@/lib/blocks";
+import { blocksToPlainText } from "@/lib/blocks";
+import { getPublishedProject } from "@/lib/project-data";
 import { formatDate } from "@/lib/format";
 
 // Yayınlanmış proje sayfası: lupra.app/<slug>. İçerik admin panelden
-// (/admin/projects) bloklarla kuruluyor. Statik route'lar (login, admin, ...)
+// (/admin/projects) bloklarla kuruluyor. Statik route'lar (login, admin, blog...)
 // bu dinamik segmentten her zaman önce eşleşir.
-//
-// cache(): sayfa ve generateMetadata aynı projeyi istiyor; memoize edilmezse
-// her istekte iki ayrı sorgu giderdi.
-const fetchPublishedProject = cache(async (slug: string) => {
-  try {
-    const { data } = await getSupabaseAdmin()
-      .from("projects")
-      .select("slug, title, summary, content, cover_url, blocks, updated_at")
-      .eq("slug", slug)
-      .eq("status", "published")
-      .maybeSingle();
-
-    if (!data) return null;
-    return { ...data, blocks: parseBlocks(data.blocks) };
-  } catch {
-    return null;
-  }
-});
+// Veri okuması src/lib/project-data.ts'te — ana sayfadaki vitrin de aynı
+// modülü kullanıyor, "yalnızca yayındakiler" kuralı tek yerde duruyor.
 
 export async function generateMetadata({
   params,
@@ -37,7 +20,7 @@ export async function generateMetadata({
   params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
   const { slug } = await params;
-  const project = await fetchPublishedProject(slug);
+  const project = await getPublishedProject(slug);
   if (!project) return {};
 
   const description = project.summary ?? blocksToPlainText(project.blocks) ?? undefined;
@@ -64,7 +47,7 @@ export default async function ProjectPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const project = await fetchPublishedProject(slug);
+  const project = await getPublishedProject(slug);
   if (!project) notFound();
 
   const hasBlocks = project.blocks.length > 0;

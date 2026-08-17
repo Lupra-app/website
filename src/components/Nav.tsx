@@ -7,6 +7,7 @@ import { Logo } from "./Logo";
 
 const NAV_LINKS = [
   { href: "#how-it-works", label: "Nasıl çalışır" },
+  { href: "#urunler", label: "Ürünler" },
   { href: "#fikirler", label: "Fikirler" },
   { href: "#faq", label: "SSS" },
 ];
